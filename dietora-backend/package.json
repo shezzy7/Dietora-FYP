@@ -11,26 +11,39 @@
     "seed:all": "npm run seed && npm run seed:admin"
   },
   "dependencies": {
+    "@langchain/core": "^1.1.41",
+    "@langchain/google-genai": "^2.1.28",
+    "@langchain/groq": "^1.2.0",
+    "@langchain/langgraph": "^1.2.9",
+    "@langchain/langgraph-checkpoint-mongodb": "^1.2.0",
+    "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
+    "google-auth-library": "^9.14.1",
+    "groq-sdk": "^0.3.1",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.2.0",
     "mongoose": "^8.0.3",
     "morgan": "^1.10.0",
-    "zod": "^3.22.4",
-    "groq-sdk": "^0.3.1",
     "node-cache": "^5.1.2",
-    "google-auth-library": "^9.14.1",
-    "axios": "^1.7.2"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
-  "keywords": ["dietora", "diet", "nutrition", "fyp", "nodejs", "google-oauth"],
+  "keywords": [
+    "dietora",
+    "diet",
+    "nutrition",
+    "fyp",
+    "nodejs",
+    "google-oauth"
+  ],
   "author": "DIETORA Team",
   "license": "ISC"
 }

@@ -44,6 +44,24 @@ export const fetchMealPlanById = createAsyncThunk('mealPlan/fetchById', async (i
   }
 })
 
+export const fetchAlternatives = createAsyncThunk('mealPlan/alternatives', async ({ planId, day, meal }, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get(`/meal-plans/${planId}/alternatives?day=${day}&meal=${meal}`)
+    return data?.data || data // assuming successResponse returns data inside data
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.message || 'Failed to fetch alternatives')
+  }
+})
+
+export const swapMeal = createAsyncThunk('mealPlan/swap', async ({ planId, day, meal, foodItemId }, { rejectWithValue }) => {
+  try {
+    const { data } = await api.patch(`/meal-plans/${planId}/swap`, { day, meal, foodItemId })
+    return data
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.message || 'Failed to swap meal')
+  }
+})
+
 function normalizePlan(plan) {
   if (!plan) return null
 
@@ -54,6 +72,7 @@ function normalizePlan(plan) {
       if (slot) {
         const food = slot.foodItem || {}
         meals[mealType] = {
+          foodId:               food._id || food.id         || null,
           name:                 food.name                   || 'Unknown',
           calories:             slot.calories               || food.calories  || 0,
           protein:              slot.protein                || food.protein   || 0,
@@ -134,9 +153,9 @@ const mealPlanSlice = createSlice({
         if (state.current) state.list = [state.current, ...state.list.slice(0, 9)]
         state.selectedDay = 0
         const src = state.current?.priceDataSource
-        const srcLabel = src === 'grounded' ? '🌐 Live Google prices'
-          : src === 'ai' ? '🤖 AI-estimated prices'
-          : '📊 Market research prices'
+        const srcLabel = src === 'grounded' ? 'Live Google prices'
+          : src === 'ai' ? 'AI-estimated prices'
+          : 'Market research prices'
         toast.success(`Plan ready! Prices from ${srcLabel}`)
       })
       .addCase(fetchMealPlans.pending,     (state)         => { state.loading = true })
@@ -159,6 +178,11 @@ const mealPlanSlice = createSlice({
         state.current = normalizePlan(raw?.mealPlan || raw)
       })
       .addCase(fetchMealPlanById.rejected, (state)         => { state.loading = false })
+      .addCase(swapMeal.fulfilled, (state, action) => {
+        const raw = action.payload?.data || action.payload
+        state.current = normalizePlan(raw?.mealPlan || raw)
+        toast.success('Meal swapped successfully!')
+      })
   },
 })
 

@@ -9,6 +9,7 @@ const {
   toggleMeal,
   submitCheckIn,
   regenerateAfterCheckIn,
+  getDashboardStats,
 } = require('../controllers/weeklyProgress.controller');
 const { protect } = require('../middleware/auth.middleware');
 

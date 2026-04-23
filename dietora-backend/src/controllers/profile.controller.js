@@ -3,6 +3,20 @@
 const HealthProfile = require('../models/HealthProfile');
 const { successResponse } = require('../utils/response.utils');
 
+// ─── Allowed fields for create/update (prevents mass assignment) ─────────────
+const ALLOWED_PROFILE_FIELDS = [
+  'age', 'gender', 'weight', 'height', 'activityLevel', 'goal',
+  'isDiabetic', 'isHypertensive', 'isCardiac', 'hasKidneyDisease', 'hasThyroid',
+  'allergies', 'dailyBudget', 'primaryGoalReason', 'hasDisease',
+  'diseaseDescription', 'onboardingCompleted',
+];
+
+const pickAllowed = (body) =>
+  ALLOWED_PROFILE_FIELDS.reduce((acc, key) => {
+    if (key in body) acc[key] = body[key];
+    return acc;
+  }, {});
+
 /**
  * @route   POST /api/v1/profile
  * @desc    Create health profile (first time)
@@ -20,7 +34,7 @@ const createProfile = async (req, res, next) => {
 
     const profile = await HealthProfile.create({
       user: req.user._id,
-      ...req.body,
+      ...pickAllowed(req.body),  // SECURITY FIX: only allow safe fields
     });
 
     return successResponse(res, profile, 'Health profile created successfully!', 201);
@@ -64,8 +78,9 @@ const updateProfile = async (req, res, next) => {
       });
     }
 
-    // Apply updates
-    Object.assign(profile, req.body);
+    // SECURITY FIX: only apply whitelisted fields — prevents user from
+    // overriding computed fields (bmi, bmr, tdee) or the owner (user) field.
+    Object.assign(profile, pickAllowed(req.body));
     await profile.save(); // triggers pre-save hook → recalculates BMI, BMR, TDEE
 
     return successResponse(res, profile, 'Health profile updated successfully!');

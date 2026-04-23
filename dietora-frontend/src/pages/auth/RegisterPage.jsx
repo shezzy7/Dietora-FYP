@@ -5,6 +5,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { registerUser } from '../../store/slices/authSlice'
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton'
+import { Target, Banknote, Salad, BarChart3, Loader2 } from 'lucide-react'
 
 // ─────────────────────────────────────────────────────────────
 // Field is defined OUTSIDE RegisterPage so React never remounts
@@ -92,13 +93,13 @@ export default function RegisterPage() {
           </p>
           <div className="mt-8 grid grid-cols-2 gap-4">
             {[
-              { icon: '🎯', text: 'Disease-aware' },
-              { icon: '💰', text: 'Budget-friendly' },
-              { icon: '🥗', text: 'Pakistani foods' },
-              { icon: '📊', text: 'Track progress' },
+              { icon: Target, text: 'Disease-aware' },
+              { icon: Banknote, text: 'Budget-friendly' },
+              { icon: Salad, text: 'Pakistani foods' },
+              { icon: BarChart3, text: 'Track progress' },
             ].map((item) => (
               <div key={item.text} className="bg-white/10 rounded-xl p-3 flex items-center gap-2">
-                <span>{item.icon}</span>
+                <span className="text-white"><item.icon className="w-5 h-5" /></span>
                 <span className="text-white text-sm font-medium">{item.text}</span>
               </div>
             ))}
@@ -192,7 +193,7 @@ export default function RegisterPage() {
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Creating account...
                 </span>
               ) : 'Create Free Account'}

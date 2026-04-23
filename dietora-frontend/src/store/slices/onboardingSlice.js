@@ -59,7 +59,7 @@ const onboardingSlice = createSlice({
       .addCase(completeOnboarding.fulfilled, (state) => {
         state.saving = false
         state.completed = true
-        toast.success('Profile setup complete! Welcome to DIETORA 🥗')
+        toast.success('Profile setup complete! Welcome to DIETORA!')
       })
       .addCase(completeOnboarding.rejected, (state, action) => {
         state.saving = false

@@ -2,26 +2,27 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProfile, saveProfile } from '../store/slices/profileSlice'
 import toast from 'react-hot-toast'
+import { Droplets, Heart, Activity, Pill, Fingerprint, Armchair, PersonStanding, Dumbbell, Zap, TrendingDown, Scale, TrendingUp, User, Target, Stethoscope, AlertTriangle, Coins, Bot, Loader2, Save, Rocket, ActivitySquare, Check, BarChart3 } from 'lucide-react'
 
 const DISEASES = [
-  { key: 'isDiabetic',       label: 'Diabetes',          icon: '🩸', color: 'blue',   desc: 'Type 2 Diabetes — low-GI, high-fiber foods prioritised' },
-  { key: 'isHypertensive',   label: 'Hypertension',      icon: '❤️', color: 'red',    desc: 'High Blood Pressure — low-sodium meals selected' },
-  { key: 'isCardiac',        label: 'Cardiac Disease',   icon: '🫀', color: 'purple', desc: 'Heart Disease — low-fat, low-cholesterol meals' },
-  { key: 'hasKidneyDisease', label: 'Kidney Disease',    icon: '🫘', color: 'amber',  desc: 'CKD — low potassium, low phosphorus, controlled protein' },
-  { key: 'hasThyroid',       label: 'Thyroid Condition', icon: '🦋', color: 'teal',   desc: 'Thyroid — avoids goitrogens, iodine-safe foods' },
+  { key: 'isDiabetic',       label: 'Diabetes',          icon: Droplets, color: 'blue',   desc: 'Type 2 Diabetes — low-GI, high-fiber foods prioritised' },
+  { key: 'isHypertensive',   label: 'Hypertension',      icon: Heart, color: 'red',    desc: 'High Blood Pressure — low-sodium meals selected' },
+  { key: 'isCardiac',        label: 'Cardiac Disease',   icon: Activity, color: 'purple', desc: 'Heart Disease — low-fat, low-cholesterol meals' },
+  { key: 'hasKidneyDisease', label: 'Kidney Disease',    icon: Pill, color: 'amber',  desc: 'CKD — low potassium, low phosphorus, controlled protein' },
+  { key: 'hasThyroid',       label: 'Thyroid Condition', icon: Fingerprint, color: 'teal',   desc: 'Thyroid — avoids goitrogens, iodine-safe foods' },
 ]
 const ALLERGIES = ['nuts', 'dairy', 'gluten', 'shellfish', 'eggs', 'soy']
 const ACTIVITY_LEVELS = [
-  { value: 'sedentary',          label: 'Sedentary',         desc: 'Little/no exercise',        icon: '🛋️' },
-  { value: 'lightly_active',     label: 'Lightly Active',    desc: '1-3 days/week',             icon: '🚶' },
-  { value: 'moderately_active',  label: 'Moderately Active', desc: '3-5 days/week',             icon: '🏃' },
-  { value: 'very_active',        label: 'Very Active',       desc: '6-7 days/week',             icon: '🏋️' },
-  { value: 'extra_active',       label: 'Extra Active',      desc: 'Physical job + training',   icon: '⚡' },
+  { value: 'sedentary',          label: 'Sedentary',         desc: 'Little/no exercise',        icon: Armchair },
+  { value: 'lightly_active',     label: 'Lightly Active',    desc: '1-3 days/week',             icon: PersonStanding },
+  { value: 'moderately_active',  label: 'Moderately Active', desc: '3-5 days/week',             icon: ActivitySquare },
+  { value: 'very_active',        label: 'Very Active',       desc: '6-7 days/week',             icon: Dumbbell },
+  { value: 'extra_active',       label: 'Extra Active',      desc: 'Physical job + training',   icon: Zap },
 ]
 const GOALS = [
-  { value: 'weight_loss',  label: 'Lose Weight',    icon: '📉', desc: '500 kcal deficit/day' },
-  { value: 'maintenance',  label: 'Maintain Weight', icon: '⚖️', desc: 'Eat at TDEE' },
-  { value: 'weight_gain',  label: 'Gain Weight',    icon: '📈', desc: '500 kcal surplus/day' },
+  { value: 'weight_loss',  label: 'Lose Weight',    icon: TrendingDown, desc: '500 kcal deficit/day' },
+  { value: 'maintenance',  label: 'Maintain Weight', icon: Scale, desc: 'Eat at TDEE' },
+  { value: 'weight_gain',  label: 'Gain Weight',    icon: TrendingUp, desc: '500 kcal surplus/day' },
 ]
 
 // Color mappings for disease toggles
@@ -45,7 +46,7 @@ function BmiMeter({ bmi }) {
   }
   const getLabel = () => {
     if (bmi < 18.5) return 'Underweight'
-    if (bmi < 25)   return 'Normal Weight ✓'
+    if (bmi < 25)   return 'Normal Weight'
     if (bmi < 30)   return 'Overweight'
     return 'Obese'
   }
@@ -168,7 +169,7 @@ export default function HealthProfilePage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+          <Loader2 className="w-10 h-10 text-emerald-600 animate-spin" />
           <p className="text-slate-500 dark:text-slate-400 text-sm">Loading your profile...</p>
         </div>
       </div>
@@ -188,7 +189,7 @@ export default function HealthProfilePage() {
 
       {/* AI analysis notice */}
       <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">🤖</span>
+        <Bot className="w-6 h-6 flex-shrink-0 text-emerald-600 mt-0.5" />
         <div className="text-sm text-emerald-700 dark:text-emerald-400">
           <strong>Two-Phase AI Analysis:</strong> When you generate a meal plan, Gemini first performs a clinical health analysis of your profile, then selects each meal individually based on your medical conditions. The more accurately you fill this form, the better your plan will be.
         </div>
@@ -198,7 +199,9 @@ export default function HealthProfilePage() {
         {/* ── Basic Info ─────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2 text-base">
-            <span className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-sm">👤</span>
+            <span className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-600">
+              <User className="w-4 h-4" />
+            </span>
             Basic Information
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -234,51 +237,63 @@ export default function HealthProfilePage() {
         {/* ── Goal ───────────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
-            <span className="w-7 h-7 bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center text-sm">🎯</span>
+            <span className="w-8 h-8 bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center text-purple-600">
+              <Target className="w-4 h-4" />
+            </span>
             Your Goal
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {GOALS.map((g) => (
-              <button key={g.value} type="button" onClick={() => setForm({ ...form, goal: g.value })}
-                className={`p-4 rounded-xl border-2 text-left transition-all duration-150 ${
-                  form.goal === g.value
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                    : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300'
-                }`}>
-                <span className="text-2xl block mb-2">{g.icon}</span>
-                <p className="font-semibold text-sm text-slate-800 dark:text-white">{g.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{g.desc}</p>
-              </button>
-            ))}
+            {GOALS.map((g) => {
+              const GoalIcon = g.icon
+              return (
+                <button key={g.value} type="button" onClick={() => setForm({ ...form, goal: g.value })}
+                  className={`p-4 rounded-xl border-2 text-left transition-all duration-150 ${
+                    form.goal === g.value
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                      : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300'
+                  }`}>
+                  <GoalIcon className="w-6 h-6 mb-2 text-slate-700 dark:text-slate-200" />
+                  <p className="font-semibold text-sm text-slate-800 dark:text-white">{g.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{g.desc}</p>
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {/* ── Activity Level ─────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
-            <span className="w-7 h-7 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-sm">🏃</span>
+            <span className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-blue-600">
+              <Activity className="w-4 h-4" />
+            </span>
             Activity Level
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {ACTIVITY_LEVELS.map((level) => (
-              <button key={level.value} type="button" onClick={() => setForm({ ...form, activityLevel: level.value })}
-                className={`p-3 rounded-xl border-2 text-left transition-all duration-150 ${
-                  form.activityLevel === level.value
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                    : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300'
-                }`}>
-                <span className="text-xl block mb-1">{level.icon}</span>
-                <p className="font-semibold text-sm text-slate-800 dark:text-white">{level.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{level.desc}</p>
-              </button>
-            ))}
+            {ACTIVITY_LEVELS.map((level) => {
+              const LevelIcon = level.icon
+              return (
+                <button key={level.value} type="button" onClick={() => setForm({ ...form, activityLevel: level.value })}
+                  className={`p-3 rounded-xl border-2 text-left transition-all duration-150 ${
+                    form.activityLevel === level.value
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                      : 'border-slate-200 dark:border-slate-600 hover:border-emerald-300'
+                  }`}>
+                  <LevelIcon className="w-5 h-5 mb-1.5 text-slate-700 dark:text-slate-200" />
+                  <p className="font-semibold text-sm text-slate-800 dark:text-white">{level.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{level.desc}</p>
+                </button>
+              )
+            })}
           </div>
         </div>
 
         {/* ── Health Conditions ──────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-base">
-            <span className="w-7 h-7 bg-red-100 dark:bg-red-900/40 rounded-lg flex items-center justify-center text-sm">🏥</span>
+            <span className="w-8 h-8 bg-red-100 dark:bg-red-900/40 rounded-lg flex items-center justify-center text-red-600">
+              <Stethoscope className="w-4 h-4" />
+            </span>
             Medical Conditions
           </h2>
           <p className="text-xs text-slate-400 mb-4">
@@ -289,6 +304,7 @@ export default function HealthProfilePage() {
             {DISEASES.map((d) => {
               const colors = DISEASE_COLORS[d.color]
               const isOn   = form[d.key]
+              const DiseaseIcon = d.icon
               return (
                 <button
                   key={d.key}
@@ -302,7 +318,7 @@ export default function HealthProfilePage() {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{d.icon}</span>
+                      <DiseaseIcon className={`w-5 h-5 ${isOn ? '' : 'opacity-60'}`} />
                       <span className="font-semibold text-sm">{d.label}</span>
                     </div>
                     {isOn && (
@@ -329,8 +345,8 @@ export default function HealthProfilePage() {
                 rows={3}
                 className="w-full border-2 border-slate-200 dark:border-slate-600 rounded-xl p-3 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 resize-none mt-1"
               />
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1">
-                <span>🤖</span>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1.5">
+                <Bot className="w-3.5 h-3.5" />
                 This description is sent directly to the AI clinical analysis — more detail = better personalisation
               </p>
             </div>
@@ -340,19 +356,21 @@ export default function HealthProfilePage() {
         {/* ── Allergies ──────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-base">
-            <span className="w-7 h-7 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-sm">⚠️</span>
+            <span className="w-8 h-8 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-amber-600">
+              <AlertTriangle className="w-4 h-4" />
+            </span>
             Food Allergies
           </h2>
           <p className="text-xs text-slate-400 mb-4">All allergens are strictly excluded from every meal slot</p>
           <div className="flex gap-2 flex-wrap">
             {ALLERGIES.map((a) => (
               <button key={a} type="button" onClick={() => toggleAllergy(a)}
-                className={`px-4 py-2 rounded-full border-2 text-sm capitalize font-medium transition-all duration-150 ${
+              className={`px-4 py-2 rounded-full border-2 text-sm capitalize font-medium transition-all duration-150 flex items-center gap-1.5 ${
                   form.allergies.includes(a)
                     ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
                     : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:border-amber-300'
                 }`}>
-                {form.allergies.includes(a) ? '✓ ' : ''}{a}
+                {form.allergies.includes(a) ? <Check className="w-3.5 h-3.5" /> : ''}{a}
               </button>
             ))}
           </div>
@@ -361,7 +379,9 @@ export default function HealthProfilePage() {
         {/* ── Budget ─────────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
-            <span className="w-7 h-7 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-sm">💰</span>
+            <span className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-600">
+              <Coins className="w-4 h-4" />
+            </span>
             Daily Food Budget (PKR)
           </h2>
           <div className="max-w-xs">
@@ -390,7 +410,7 @@ export default function HealthProfilePage() {
         {/* ── Calculated Values Preview ─────────────────── */}
         {profile?.tdee && (
           <div className="card bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800">
-            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3">📊 Current Calculated Values</p>
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> Current Calculated Values</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'BMI',    value: profile.bmi?.toFixed(1) || '—',               unit: '' },
@@ -411,11 +431,11 @@ export default function HealthProfilePage() {
           className="btn-primary w-full py-4 text-base font-bold flex items-center justify-center gap-2">
           {saving ? (
             <>
-              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Saving Profile...
             </>
           ) : (
-            <>{profile ? '💾 Update Health Profile' : '🚀 Create Health Profile'}</>
+            <>{profile ? <><Save className="w-5 h-5"/> Update Health Profile</> : <><Rocket className="w-5 h-5"/> Create Health Profile</>}</>
           )}
         </button>
       </form>

@@ -275,4 +275,41 @@ const regenerateAfterCheckIn = async (req, res, next) => {
   }
 };
 
-module.exports = { initProgress, getCurrent, getAll, toggleMeal, submitCheckIn, regenerateAfterCheckIn };
+/**
+ * @route   GET /api/v1/progress/dashboard-stats
+ */
+const getDashboardStats = async (req, res, next) => {
+  try {
+    const progress = await WeeklyProgress.findOne({ user: req.user._id }).sort({ createdAt: -1 });
+    if (!progress) return res.status(404).json({ success: false, message: 'No progress found.' });
+
+    let totalMeals = 0;
+    let completedMeals = 0;
+    
+    progress.days.forEach(day => {
+      totalMeals += day.meals.length;
+      completedMeals += day.meals.filter(m => m.completed).length;
+    });
+
+    const healthScore = totalMeals > 0 ? Math.round((completedMeals / totalMeals) * 100) : 0;
+
+    const chartData = progress.days.map(day => ({
+      name: day.dayName.substring(0, 3),
+      calories: day.caloriesConsumed || 0,
+      cost: day.costSpent || 0,
+      completed: day.meals.filter(m => m.completed).length
+    }));
+
+    return successResponse(res, {
+      healthScore,
+      completedMeals,
+      totalMeals,
+      chartData,
+      weekNumber: progress.weekNumber
+    }, 'Dashboard stats fetched');
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { initProgress, getCurrent, getAll, toggleMeal, submitCheckIn, regenerateAfterCheckIn, getDashboardStats };

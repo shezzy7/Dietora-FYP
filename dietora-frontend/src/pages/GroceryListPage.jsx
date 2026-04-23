@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchGroceryList, toggleItem, clearChecked } from '../store/slices/grocerySlice'
 import { Link } from 'react-router-dom'
+import { ShoppingCart, Printer, RotateCcw, CheckCircle2, Wheat, Beef, Carrot, Milk, Utensils, Check } from 'lucide-react'
 
 export default function GroceryListPage() {
   const dispatch = useDispatch()
@@ -25,11 +26,13 @@ export default function GroceryListPage() {
 
   if (!mealPlans?.length) {
     return (
-      <div className="max-w-md mx-auto text-center py-20">
-        <p className="text-5xl mb-4">🛒</p>
+      <div className="max-w-md mx-auto text-center py-20 card border-dashed border-2 bg-slate-50/50 dark:bg-slate-800/50">
+        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+          <ShoppingCart className="w-10 h-10 text-amber-600" />
+        </div>
         <h2 className="font-display font-bold text-2xl text-slate-800 dark:text-white mb-2">No grocery list yet</h2>
-        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">Generate a meal plan first to get your grocery list.</p>
-        <Link to="/meal-plan" className="btn-primary py-3 px-8">Generate Meal Plan →</Link>
+        <p className="text-slate-500 dark:text-slate-400 mb-6 text-base">Generate a meal plan first to get your grocery list.</p>
+        <Link to="/meal-plan" className="btn-primary py-3 px-8 inline-flex">Generate Meal Plan →</Link>
       </div>
     )
   }
@@ -41,9 +44,14 @@ export default function GroceryListPage() {
           <h1 className="page-title">Grocery List</h1>
           <p className="page-subtitle">Based on your latest 7-day meal plan</p>
         </div>
-        <button onClick={() => dispatch(clearChecked())} className="btn-secondary py-2 px-4 text-sm">
-          Reset Checks
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => window.print()} className="btn-amber py-2 px-5 text-sm font-bold flex items-center gap-2">
+            <Printer className="w-4 h-4" /> Print / Export PDF
+          </button>
+          <button onClick={() => dispatch(clearChecked())} className="btn-secondary py-2 px-5 text-sm">
+            <RotateCcw className="w-4 h-4" /> Reset Checks
+          </button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -76,7 +84,9 @@ export default function GroceryListPage() {
             />
           </div>
           {checkedCount === totalItems && totalItems > 0 && (
-            <p className="text-emerald-600 font-semibold text-sm mt-2 text-center">✅ All items purchased!</p>
+            <p className="text-emerald-600 font-semibold text-sm mt-3 text-center flex items-center justify-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4" /> All items purchased!
+            </p>
           )}
         </div>
       )}
@@ -87,17 +97,22 @@ export default function GroceryListPage() {
           <p className="text-slate-400 mt-3 text-sm">Loading grocery list...</p>
         </div>
       ) : items.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-4xl mb-3">🛒</p>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Your grocery list is empty</p>
+        <div className="card text-center py-16 border-dashed border-2 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingCart className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-base">Your grocery list is empty</p>
         </div>
       ) : (
         <div className="space-y-4">
           {Object.entries(groupedItems).map(([category, catItems]) => (
             <div key={category} className="card">
               <h3 className="font-display font-bold text-sm text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2 capitalize">
-                <span className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/40 rounded-md flex items-center justify-center text-xs">
-                  {category === 'grain' ? '🌾' : category === 'protein' ? '🥩' : category === 'vegetable' ? '🥦' : category === 'dairy' ? '🥛' : '🥘'}
+                <span className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 rounded-lg flex items-center justify-center text-xs">
+                  {category === 'grain' ? <Wheat className="w-4 h-4"/> : 
+                   category === 'protein' ? <Beef className="w-4 h-4"/> : 
+                   category === 'vegetable' ? <Carrot className="w-4 h-4"/> : 
+                   category === 'dairy' ? <Milk className="w-4 h-4"/> : <Utensils className="w-4 h-4"/>}
                 </span>
                 {category}
               </h3>
@@ -117,9 +132,9 @@ export default function GroceryListPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                          checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 dark:border-slate-500'
+                          checked ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 dark:border-slate-500 group-hover:border-emerald-400'
                         }`}>
-                          {checked && <span className="text-white text-xs">✓</span>}
+                          {checked && <Check className="w-3 h-3 text-white" />}
                         </div>
                         <span className={`text-sm font-medium ${checked ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>
                           {item.name}

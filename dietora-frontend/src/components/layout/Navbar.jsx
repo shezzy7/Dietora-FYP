@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { toggleTheme } from '../../store/slices/themeSlice'
 import { logout } from '../../store/slices/authSlice'
 import { useState } from 'react'
+import { Sun, Moon, Menu, X } from 'lucide-react'
 
 export default function Navbar() {
   const dispatch = useDispatch()
@@ -15,11 +16,11 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 font-display font-bold text-xl text-emerald-600">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm font-black">D</span>
+          <Link to="/" className="flex items-center gap-2.5 font-display font-extrabold text-2xl tracking-tight text-slate-900 dark:text-white group">
+            <div className="w-9 h-9 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-xl flex items-center justify-center shadow-[0_4px_12px_rgba(16,185,129,0.3)] group-hover:shadow-[0_4px_20px_rgba(16,185,129,0.5)] transition-shadow">
+              <span className="text-white text-lg font-black tracking-tighter">D</span>
             </div>
-            DIETORA
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300">DIETORA</span>
           </Link>
 
           {/* Desktop Nav */}
@@ -33,10 +34,10 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => dispatch(toggleTheme())}
-              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              className="p-2.5 rounded-xl text-slate-500 bg-slate-100/50 dark:bg-slate-800/50 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 border border-slate-200/50 dark:border-slate-700/50 transition-all hover:scale-105 active:scale-95"
               title={dark ? 'Light mode' : 'Dark mode'}
             >
-              {dark ? '☀️' : '🌙'}
+              {dark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
 
             {user ? (
@@ -56,23 +57,25 @@ export default function Navbar() {
               className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
               onClick={() => setMobileOpen(!mobileOpen)}
             >
-              {mobileOpen ? '✕' : '☰'}
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {mobileOpen && (
-          <div className="md:hidden pb-4 space-y-2 animate-slide-up">
-            <NavLink to="/" end className="block py-2 px-4 rounded-lg nav-link" onClick={() => setMobileOpen(false)}>Home</NavLink>
-            <NavLink to="/about" className="block py-2 px-4 rounded-lg nav-link" onClick={() => setMobileOpen(false)}>About</NavLink>
-            <NavLink to="/faq" className="block py-2 px-4 rounded-lg nav-link" onClick={() => setMobileOpen(false)}>FAQ</NavLink>
-            {!user && (
-              <div className="flex gap-2 pt-2">
-                <Link to="/login" className="btn-secondary py-2 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>Login</Link>
-                <Link to="/register" className="btn-primary py-2 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>Get Started</Link>
-              </div>
-            )}
+          <div className="md:hidden pb-4 space-y-2 animate-slide-up relative z-50">
+            <div className="p-2 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-md">
+              <NavLink to="/" end className="block py-3 px-4 rounded-xl nav-link mb-1 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>Home</NavLink>
+              <NavLink to="/about" className="block py-3 px-4 rounded-xl nav-link mb-1 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>About</NavLink>
+              <NavLink to="/faq" className="block py-3 px-4 rounded-xl nav-link mb-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>FAQ</NavLink>
+              {!user && (
+                <div className="flex gap-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50 px-2 mt-2">
+                  <Link to="/login" className="btn-secondary py-2.5 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>Login</Link>
+                  <Link to="/register" className="btn-primary py-2.5 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>Get Started</Link>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

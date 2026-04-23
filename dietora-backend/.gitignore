@@ -1,6 +1,30 @@
-node_modules/
+# ─── Dietora Backend — .gitignore ────────────────────────────
+
+# Secrets — NEVER commit these
 .env
-*.log
+.env.local
+.env.*.local
+# NOTE: .env.example IS committed on purpose (no real secrets, just template)
+
+# Dependencies
+node_modules/
+
+# Build / compile
 dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# Test coverage
 coverage/
-.env.example
+.nyc_output/
+
+# Editor / OS
+.vscode/
+.idea/
+*.sw?
+.DS_Store
+Thumbs.db

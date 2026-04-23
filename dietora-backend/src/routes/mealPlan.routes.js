@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  generate, getAll, getActive, getById, getDayPlan, archivePlan,
+  generate, getAll, getActive, getById, getDayPlan, archivePlan, getAlternatives, swapMeal, getRecipe
 } = require('../controllers/mealPlan.controller');
 const { protect } = require('../middleware/auth.middleware');
 
@@ -17,6 +17,15 @@ router.get('/active', getActive);
 
 // @route GET /api/v1/meal-plans
 router.get('/', getAll);
+
+// @route GET /api/v1/meal-plans/:id/alternatives
+router.get('/:id/alternatives', getAlternatives);
+
+// @route PATCH /api/v1/meal-plans/:id/swap
+router.patch('/:id/swap', swapMeal);
+
+// @route GET /api/v1/meal-plans/recipe/:foodId
+router.get('/recipe/:foodId', getRecipe);
 
 // @route GET /api/v1/meal-plans/:id
 router.get('/:id', getById);

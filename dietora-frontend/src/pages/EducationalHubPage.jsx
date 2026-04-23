@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { Droplets, Heart, Activity, Microscope, Dumbbell, Scale, BookOpen, Search, ArrowLeft, ShieldAlert } from 'lucide-react'
 
 const ARTICLES = [
   {
     id: 1,
     title: 'Managing Diabetes Through Pakistani Diet',
     category: 'Diabetes',
-    emoji: '🩸',
+    icon: Droplets,
     readTime: '5 min',
     color: 'blue',
     summary: 'Diabetes is one of the most common chronic conditions in Pakistan, affecting millions. Diet plays a critical role in blood sugar management.',
@@ -21,7 +22,7 @@ const ARTICLES = [
     id: 2,
     title: 'Hypertension Diet Guide for Pakistanis',
     category: 'Hypertension',
-    emoji: '❤️',
+    icon: Heart,
     readTime: '6 min',
     color: 'red',
     summary: 'High blood pressure (BP) affects 1 in 3 Pakistani adults. The right diet can reduce systolic BP by 8-14 mmHg without medication.',
@@ -37,7 +38,7 @@ const ARTICLES = [
     id: 3,
     title: 'Heart-Healthy Eating in Pakistan',
     category: 'Cardiac Health',
-    emoji: '🫀',
+    icon: Activity,
     readTime: '7 min',
     color: 'purple',
     summary: 'Cardiovascular disease is the leading cause of death in Pakistan. A heart-healthy diet can reduce your risk by up to 80%.',
@@ -53,7 +54,7 @@ const ARTICLES = [
     id: 4,
     title: 'Understanding BMR and TDEE',
     category: 'Nutrition Science',
-    emoji: '🔬',
+    icon: Microscope,
     readTime: '4 min',
     color: 'emerald',
     summary: 'BMR and TDEE are the foundation of all calorie-based nutrition planning. Understanding them helps you eat the right amount.',
@@ -68,7 +69,7 @@ const ARTICLES = [
     id: 5,
     title: 'Protein Sources in Pakistani Diet',
     category: 'Macronutrients',
-    emoji: '💪',
+    icon: Dumbbell,
     readTime: '5 min',
     color: 'amber',
     summary: 'Protein is essential for muscle building, immune function, and satiety. Here are the best affordable protein sources in Pakistan.',
@@ -83,7 +84,7 @@ const ARTICLES = [
     id: 6,
     title: 'Healthy Weight Management for Pakistanis',
     category: 'Weight Management',
-    emoji: '⚖️',
+    icon: Scale,
     readTime: '6 min',
     color: 'teal',
     summary: 'Obesity rates in Pakistan have doubled in 20 years. Sustainable weight management requires a balanced approach to diet and lifestyle.',
@@ -122,17 +123,19 @@ export default function EducationalHubPage() {
           onClick={() => setSelected(null)}
           className="flex items-center gap-2 text-slate-500 hover:text-emerald-600 mb-6 text-sm font-medium transition-colors"
         >
-          ← Back to Articles
+          <ArrowLeft className="w-4 h-4" /> Back to Articles
         </button>
 
         <div className="card">
           <div className="flex items-start gap-4 mb-6">
-            <span className="text-4xl">{selected.emoji}</span>
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-${selected.color}-100 dark:bg-${selected.color}-900/40 text-${selected.color}-600`}>
+              {(() => { const Icon = selected.icon; return <Icon className="w-8 h-8" /> })()}
+            </div>
             <div>
               <span className={`badge ${colors.badge} mb-2`}>{selected.category}</span>
               <h1 className="font-display font-bold text-2xl text-slate-900 dark:text-white">{selected.title}</h1>
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">{selected.summary}</p>
-              <p className="text-xs text-slate-400 mt-1">📖 {selected.readTime} read</p>
+              <p className="text-xs text-slate-400 mt-2 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> {selected.readTime} read</p>
             </div>
           </div>
 
@@ -148,9 +151,10 @@ export default function EducationalHubPage() {
             ))}
           </div>
 
-          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4">
-            <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-              ⚕️ Medical Disclaimer: This article is for educational purposes only. Always consult a qualified healthcare provider before making significant dietary changes, especially if you have a medical condition.
+          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 flex gap-3">
+            <ShieldAlert className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
+              <strong>Medical Disclaimer:</strong> This article is for educational purposes only. Always consult a qualified healthcare provider before making significant dietary changes, especially if you have a medical condition.
             </p>
           </div>
         </div>
@@ -168,7 +172,9 @@ export default function EducationalHubPage() {
       {/* Search */}
       <div className="mb-6 max-w-md">
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <Search className="w-4 h-4" />
+          </span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -188,13 +194,15 @@ export default function EducationalHubPage() {
               className={`card-hover cursor-pointer border-2 ${colors.border}`}
             >
               <div className="flex items-start justify-between gap-3 mb-3">
-                <span className="text-3xl">{article.emoji}</span>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${article.color}-100 dark:bg-${article.color}-900/40 text-${article.color}-600`}>
+                  {(() => { const Icon = article.icon; return <Icon className="w-5 h-5" /> })()}
+                </div>
                 <span className={`badge ${colors.badge} text-xs`}>{article.category}</span>
               </div>
               <h3 className="font-display font-bold text-slate-800 dark:text-white mb-2 leading-tight">{article.title}</h3>
               <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed line-clamp-3">{article.summary}</p>
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-xs text-slate-400">📖 {article.readTime} read</span>
+                <span className="text-xs text-slate-400 flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> {article.readTime} read</span>
                 <span className="text-emerald-600 text-xs font-semibold">Read Article →</span>
               </div>
             </div>
@@ -203,9 +211,11 @@ export default function EducationalHubPage() {
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center py-16">
-          <p className="text-4xl mb-3">📚</p>
-          <p className="text-slate-500 dark:text-slate-400">No articles found for "{search}"</p>
+        <div className="text-center py-16 card border-dashed border-2 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+            <BookOpen className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 text-base">No articles found for "{search}"</p>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { toggleTheme } from '../../store/slices/themeSlice'
 import { toggleChatbot } from '../../store/slices/chatbotSlice'
 import { useLocation } from 'react-router-dom'
+import { Menu, Bot, Sun, Moon } from 'lucide-react'
 
 const pageNames = {
   '/dashboard': 'Dashboard',
@@ -28,9 +29,9 @@ export default function TopBar({ onMenuClick }) {
       {/* Mobile Menu */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+        className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
-        ☰
+        <Menu className="w-5 h-5" />
       </button>
 
       {/* Page Title */}
@@ -43,23 +44,23 @@ export default function TopBar({ onMenuClick }) {
         {/* Chatbot */}
         <button
           onClick={() => dispatch(toggleChatbot())}
-          className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+          className="p-2 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
           title="Open AI Chatbot"
         >
-          🤖
+          <Bot className="w-5 h-5" />
         </button>
 
         {/* Theme Toggle */}
         <button
           onClick={() => dispatch(toggleTheme())}
-          className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          className="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         >
-          {dark ? '☀️' : '🌙'}
+          {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
 
         {/* User Avatar */}
         {user && (
-          <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs ml-1">
+          <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-sm ml-2 shadow-sm border-2 border-white dark:border-slate-800 cursor-pointer hover:scale-105 transition-transform">
             {user.name?.[0]?.toUpperCase() || 'U'}
           </div>
         )}

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Lightbulb, Utensils, Hospital, Banknote, Lock, HelpCircle, Search } from 'lucide-react'
 
 const FAQS = [
   {
     category: 'General',
-    icon: '💡',
+    icon: Lightbulb,
     items: [
       {
         q: 'What is DIETORA?',
@@ -26,7 +27,7 @@ const FAQS = [
   },
   {
     category: 'Meal Plans',
-    icon: '🍽️',
+    icon: Utensils,
     items: [
       {
         q: 'How does the AI meal plan generator work?',
@@ -48,7 +49,7 @@ const FAQS = [
   },
   {
     category: 'Health Profile',
-    icon: '🏥',
+    icon: Hospital,
     items: [
       {
         q: 'What is BMI and how is it calculated?',
@@ -70,7 +71,7 @@ const FAQS = [
   },
   {
     category: 'Budget & Grocery',
-    icon: '💰',
+    icon: Banknote,
     items: [
       {
         q: 'What currency does DIETORA use?',
@@ -92,7 +93,7 @@ const FAQS = [
   },
   {
     category: 'Account & Privacy',
-    icon: '🔐',
+    icon: Lock,
     items: [
       {
         q: 'Is my health data secure?',
@@ -142,7 +143,9 @@ export default function FaqPage() {
     <div className="max-w-4xl mx-auto px-4 py-16">
       {/* Hero */}
       <div className="text-center mb-12">
-        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/40 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-5">❓</div>
+        <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/40 rounded-3xl flex items-center justify-center mx-auto mb-5">
+          <HelpCircle className="w-8 h-8 text-emerald-600" />
+        </div>
         <h1 className="font-display text-5xl font-bold text-slate-900 dark:text-white mb-4">Frequently Asked Questions</h1>
         <p className="text-slate-500 dark:text-slate-400 text-lg max-w-xl mx-auto">
           Everything you need to know about DIETORA's meal planning, health features, and budget optimization.
@@ -161,7 +164,10 @@ export default function FaqPage() {
                 : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-emerald-400'
             }`}
           >
-            {FAQS.find((f) => f.category === cat)?.icon || '🔍'} {cat}
+            {FAQS.find((f) => f.category === cat) ? (() => {
+              const Icon = FAQS.find((f) => f.category === cat).icon
+              return <Icon className="w-4 h-4 inline-block mr-1 -mt-0.5" />
+            })() : <Search className="w-4 h-4 inline-block mr-1 -mt-0.5" />} {cat}
           </button>
         ))}
       </div>
@@ -171,7 +177,7 @@ export default function FaqPage() {
         {filtered.map((section) => (
           <div key={section.category}>
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">{section.icon}</span>
+              <span className="text-xl text-emerald-600"><section.icon className="w-6 h-6" /></span>
               <h2 className="font-display font-bold text-lg text-slate-800 dark:text-white">{section.category}</h2>
               <div className="flex-1 h-px bg-slate-200 dark:bg-slate-700 ml-2" />
             </div>

@@ -5,34 +5,41 @@
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { submitCheckIn, setShowCheckIn } from '../../store/slices/progressSlice'
+import {
+  SmilePlus, Smile, Meh, Frown, PartyPopper,
+  Zap, BatteryCharging, Battery, BatteryMedium, BatteryWarning,
+  CheckCircle, ThumbsUp, HelpCircle, XCircle,
+  TrendingDown, Scale, TrendingUp,
+  Check, Bot, X, Rocket, Activity, Loader2
+} from 'lucide-react'
 
 const FEELINGS = [
-  { value: 'much_better', label: 'Much Better', icon: '🤩' },
-  { value: 'better',      label: 'Better',       icon: '😊' },
-  { value: 'same',        label: 'About the Same', icon: '😐' },
-  { value: 'worse',       label: 'Worse',        icon: '😔' },
-  { value: 'much_worse',  label: 'Much Worse',   icon: '😢' },
+  { value: 'much_better', label: 'Much Better', icon: SmilePlus },
+  { value: 'better',      label: 'Better',       icon: Smile },
+  { value: 'same',        label: 'About the Same', icon: Meh },
+  { value: 'worse',       label: 'Worse',        icon: Frown },
+  { value: 'much_worse',  label: 'Much Worse',   icon: Frown },
 ]
 
 const ENERGY_LEVELS = [
-  { value: 'very_high', label: 'Very High', icon: '⚡' },
-  { value: 'high',      label: 'High',      icon: '🔋' },
-  { value: 'moderate',  label: 'Moderate',  icon: '🔆' },
-  { value: 'low',       label: 'Low',       icon: '😴' },
-  { value: 'very_low',  label: 'Very Low',  icon: '🪫' },
+  { value: 'very_high', label: 'Very High', icon: Zap },
+  { value: 'high',      label: 'High',      icon: BatteryCharging },
+  { value: 'moderate',  label: 'Moderate',  icon: Battery },
+  { value: 'low',       label: 'Low',       icon: BatteryMedium },
+  { value: 'very_low',  label: 'Very Low',  icon: BatteryWarning },
 ]
 
 const DIGESTION = [
-  { value: 'excellent', label: 'Excellent', icon: '✅' },
-  { value: 'good',      label: 'Good',      icon: '👍' },
-  { value: 'fair',      label: 'Fair',      icon: '🤔' },
-  { value: 'poor',      label: 'Poor',      icon: '❌' },
+  { value: 'excellent', label: 'Excellent', icon: CheckCircle },
+  { value: 'good',      label: 'Good',      icon: ThumbsUp },
+  { value: 'fair',      label: 'Fair',      icon: HelpCircle },
+  { value: 'poor',      label: 'Poor',      icon: XCircle },
 ]
 
 const WEIGHT_CHANGE = [
-  { value: 'lost',       label: 'Lost weight',       icon: '📉' },
-  { value: 'maintained', label: 'Stayed the same',   icon: '⚖️' },
-  { value: 'gained',     label: 'Gained weight',     icon: '📈' },
+  { value: 'lost',       label: 'Lost weight',       icon: TrendingDown },
+  { value: 'maintained', label: 'Stayed the same',   icon: Scale },
+  { value: 'gained',     label: 'Gained weight',     icon: TrendingUp },
 ]
 
 export default function WeeklyCheckIn({ progress, onRegenerate }) {
@@ -69,7 +76,9 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
   // ── Step 0: Week Summary ──────────────────────────────
   const renderSummary = () => (
     <div className="text-center">
-      <div className="text-6xl mb-4">🎉</div>
+      <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+        <PartyPopper className="w-10 h-10 text-emerald-600" />
+      </div>
       <h2 className="text-2xl font-display font-bold text-slate-800 dark:text-white mb-2">
         Week {weekStats.weekNumber} Complete!
       </h2>
@@ -95,8 +104,8 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
       </div>
 
       <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 text-left text-sm text-slate-600 dark:text-slate-400">
-        <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">
-          📝 Quick health check-in
+        <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1 flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-emerald-600" /> Quick health check-in
         </p>
         <p>
           Answer a few questions so we can adjust Week {weekStats.weekNumber + 1}'s plan to your current health status.
@@ -126,10 +135,10 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
             }`}
           >
-            <span className="text-3xl">{f.icon}</span>
+            <span className="text-3xl text-slate-500 group-hover:text-emerald-500 transition-colors"><f.icon className="w-8 h-8" /></span>
             <span className="font-semibold text-slate-800 dark:text-white">{f.label}</span>
             {form.overallFeeling === f.value && (
-              <span className="ml-auto text-emerald-600 font-bold text-lg">✓</span>
+              <span className="ml-auto text-emerald-600 font-bold text-lg"><Check className="w-5 h-5" /></span>
             )}
           </button>
         ))}
@@ -163,7 +172,7 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
             }`}
           >
-            <span className="block text-2xl mb-1">{w.icon}</span>
+            <span className="block text-2xl mb-2 flex justify-center text-slate-500"><w.icon className="w-6 h-6" /></span>
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{w.label}</span>
           </button>
         ))}
@@ -204,7 +213,7 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-blue-300'
             }`}
           >
-            <span className="block text-xl mb-1">{e.icon}</span>
+            <span className="block text-xl mb-1 flex justify-center text-slate-500"><e.icon className="w-5 h-5" /></span>
             <span className="text-slate-600 dark:text-slate-400 leading-tight">{e.label}</span>
           </button>
         ))}
@@ -224,7 +233,7 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
             }`}
           >
-            <span className="block text-xl mb-1">{d.icon}</span>
+            <span className="block text-xl mb-1 flex justify-center text-slate-500"><d.icon className="w-5 h-5" /></span>
             <span className="text-slate-600 dark:text-slate-400">{d.label}</span>
           </button>
         ))}
@@ -268,8 +277,8 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
         />
       </div>
 
-      <div className="mt-5 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm text-emerald-700 dark:text-emerald-400">
-        🤖 After you submit, DIETORA will generate your Week {weekStats.weekNumber + 1} plan adjusted to your health update — with real-time PKR prices.
+      <div className="mt-5 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-2">
+        <Bot className="w-5 h-5 flex-shrink-0" /> After you submit, DIETORA will generate your Week {weekStats.weekNumber + 1} plan adjusted to your health update — with real-time PKR prices.
       </div>
     </div>
   )
@@ -292,7 +301,7 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
               onClick={() => dispatch(setShowCheckIn(false))}
               className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xl leading-none"
             >
-              ✕
+              <X className="w-5 h-5" />
             </button>
           </div>
           {/* Progress bar */}
@@ -337,7 +346,7 @@ export default function WeeklyCheckIn({ progress, onRegenerate }) {
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Generating next plan...
                   </>
-                ) : `🚀 Submit & Get Week ${weekStats.weekNumber + 1} Plan`}
+                ) : <><Rocket className="w-4 h-4"/> Submit & Get Week {weekStats.weekNumber + 1} Plan</>}
               </button>
             ) : (
               <button

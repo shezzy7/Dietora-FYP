@@ -122,7 +122,7 @@ const authSlice = createSlice({
         state.user = action.payload.user
         state.token = action.payload.token
         state.initialized = true
-        toast.success('Account created! Welcome to DIETORA 🥗')
+        toast.success('Account created! Welcome to DIETORA!')
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false

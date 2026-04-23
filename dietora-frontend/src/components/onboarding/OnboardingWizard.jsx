@@ -5,37 +5,44 @@ import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { completeOnboarding, updateWizardData } from '../../store/slices/onboardingSlice'
 import { fetchProfile } from '../../store/slices/profileSlice'
+import {
+  Hospital, TrendingDown, Dumbbell, Salad, Banknote, Sparkles,
+  Droplets, HeartPulse, Activity, Pill, Fingerprint,
+  Sofa, Footprints, PersonStanding, Zap, Flame, BicepsFlexed,
+  Scale, TrendingUp, Hand, Heart, User, Check, Lightbulb,
+  CheckCircle2, PartyPopper, Rocket, Loader2
+} from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────
 const PRIMARY_REASONS = [
-  { value: 'manage_disease', label: 'Manage a health condition', icon: '🏥', desc: 'Diabetes, BP, cardiac, etc.' },
-  { value: 'weight_loss', label: 'Lose weight', icon: '📉', desc: 'Shed extra kgs safely' },
-  { value: 'weight_gain', label: 'Gain weight', icon: '💪', desc: 'Build muscle & mass' },
-  { value: 'healthy_eating', label: 'Eat healthier', icon: '🥗', desc: 'Better nutrition habits' },
-  { value: 'budget_eating', label: 'Save money on food', icon: '💰', desc: 'Nutritious & affordable' },
-  { value: 'other', label: 'Something else', icon: '✨', desc: 'Tell us more below' },
+  { value: 'manage_disease', label: 'Manage a health condition', icon: Hospital, desc: 'Diabetes, BP, cardiac, etc.' },
+  { value: 'weight_loss', label: 'Lose weight', icon: TrendingDown, desc: 'Shed extra kgs safely' },
+  { value: 'weight_gain', label: 'Gain weight', icon: Dumbbell, desc: 'Build muscle & mass' },
+  { value: 'healthy_eating', label: 'Eat healthier', icon: Salad, desc: 'Better nutrition habits' },
+  { value: 'budget_eating', label: 'Save money on food', icon: Banknote, desc: 'Nutritious & affordable' },
+  { value: 'other', label: 'Something else', icon: Sparkles, desc: 'Tell us more below' },
 ]
 
 const DISEASES = [
-  { key: 'isDiabetic', label: 'Diabetes (Sugar)', icon: '🩸', desc: 'Type 1 or Type 2' },
-  { key: 'isHypertensive', label: 'Hypertension (High BP)', icon: '❤️', desc: 'Blood pressure issues' },
-  { key: 'isCardiac', label: 'Heart / Cardiac', icon: '🫀', desc: 'Heart disease or condition' },
-  { key: 'hasKidneyDisease', label: 'Kidney Disease', icon: '🫘', desc: 'CKD or related' },
-  { key: 'hasThyroid', label: 'Thyroid Disorder', icon: '🦋', desc: 'Hypo or Hyperthyroid' },
+  { key: 'isDiabetic', label: 'Diabetes (Sugar)', icon: Droplets, desc: 'Type 1 or Type 2' },
+  { key: 'isHypertensive', label: 'Hypertension (High BP)', icon: Heart, desc: 'Blood pressure issues' },
+  { key: 'isCardiac', label: 'Heart / Cardiac', icon: HeartPulse, desc: 'Heart disease or condition' },
+  { key: 'hasKidneyDisease', label: 'Kidney Disease', icon: Pill, desc: 'CKD or related' },
+  { key: 'hasThyroid', label: 'Thyroid Disorder', icon: Fingerprint, desc: 'Hypo or Hyperthyroid' },
 ]
 
 const ACTIVITY_LEVELS = [
-  { value: 'sedentary', label: 'Mostly sitting', icon: '🛋️', desc: 'Desk job, little exercise' },
-  { value: 'lightly_active', label: 'Light activity', icon: '🚶', desc: 'Walk 1–3 days/week' },
-  { value: 'moderately_active', label: 'Moderately active', icon: '🏃', desc: 'Exercise 3–5 days/week' },
-  { value: 'very_active', label: 'Very active', icon: '🏋️', desc: 'Intense exercise 6–7 days' },
-  { value: 'extra_active', label: 'Extremely active', icon: '⚡', desc: 'Physical job + daily training' },
+  { value: 'sedentary', label: 'Mostly sitting', icon: Sofa, desc: 'Desk job, little exercise' },
+  { value: 'lightly_active', label: 'Light activity', icon: PersonStanding, desc: 'Walk 1–3 days/week' },
+  { value: 'moderately_active', label: 'Moderately active', icon: Activity, desc: 'Exercise 3–5 days/week' },
+  { value: 'very_active', label: 'Very active', icon: Dumbbell, desc: 'Intense exercise 6–7 days' },
+  { value: 'extra_active', label: 'Extremely active', icon: Zap, desc: 'Physical job + daily training' },
 ]
 
 const GOALS = [
-  { value: 'weight_loss', label: 'Lose Weight', icon: '📉', desc: '500 kcal deficit/day' },
-  { value: 'maintenance', label: 'Maintain Weight', icon: '⚖️', desc: 'Stay at current weight' },
-  { value: 'weight_gain', label: 'Gain Weight', icon: '📈', desc: '500 kcal surplus/day' },
+  { value: 'weight_loss', label: 'Lose Weight', icon: TrendingDown, desc: '500 kcal deficit/day' },
+  { value: 'maintenance', label: 'Maintain Weight', icon: Scale, desc: 'Stay at current weight' },
+  { value: 'weight_gain', label: 'Gain Weight', icon: TrendingUp, desc: '500 kcal surplus/day' },
 ]
 
 const ALLERGIES = ['nuts', 'dairy', 'gluten', 'shellfish', 'eggs', 'soy']
@@ -173,8 +180,8 @@ export default function OnboardingWizard({ onComplete }) {
   // Step 0: Why are you here?
   const renderStep0 = () => (
     <div>
-      <h2 className="text-2xl font-display font-bold text-slate-800 dark:text-white mb-1">
-        Welcome, {firstName}! 👋
+      <h2 className="text-2xl font-display font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2">
+        Welcome, {firstName}! <Hand className="w-6 h-6 text-amber-400 fill-amber-400" />
       </h2>
       <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
         Tell us why you're here so we can personalize your experience
@@ -191,7 +198,7 @@ export default function OnboardingWizard({ onComplete }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-600'
             }`}
           >
-            <span className="text-2xl">{r.icon}</span>
+            <span className="text-2xl flex justify-center text-slate-500 group-hover:text-emerald-500 transition-colors"><r.icon className="w-8 h-8" /></span>
             <p className="font-semibold text-sm text-slate-800 dark:text-white mt-2">{r.label}</p>
             <p className="text-xs text-slate-400 mt-0.5">{r.desc}</p>
           </button>
@@ -225,7 +232,7 @@ export default function OnboardingWizard({ onComplete }) {
               : 'border-slate-200 dark:border-slate-700 hover:border-red-300'
           }`}
         >
-          <span className="text-4xl block mb-3">😷</span>
+          <span className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/40 text-red-500 flex items-center justify-center mx-auto mb-3"><Hospital className="w-6 h-6" /></span>
           <p className="font-bold text-slate-800 dark:text-white text-lg">Yes</p>
           <p className="text-xs text-slate-400 mt-1">I have a health condition</p>
         </button>
@@ -238,7 +245,7 @@ export default function OnboardingWizard({ onComplete }) {
               : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
           }`}
         >
-          <span className="text-4xl block mb-3">💪</span>
+          <span className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-500 flex items-center justify-center mx-auto mb-3"><Activity className="w-6 h-6" /></span>
           <p className="font-bold text-slate-800 dark:text-white text-lg">No</p>
           <p className="text-xs text-slate-400 mt-1">I'm generally healthy</p>
         </button>
@@ -273,7 +280,7 @@ export default function OnboardingWizard({ onComplete }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-red-200'
             }`}
           >
-            <span className="text-2xl">{d.icon}</span>
+            <span className="text-2xl flex justify-center text-slate-500"><d.icon className="w-6 h-6" /></span>
             <div className="flex-1">
               <p className="font-semibold text-sm text-slate-800 dark:text-white">{d.label}</p>
               <p className="text-xs text-slate-400">{d.desc}</p>
@@ -281,7 +288,7 @@ export default function OnboardingWizard({ onComplete }) {
             <div className={`w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 ${
               data[d.key] ? 'bg-red-500 border-red-500' : 'border-slate-300 dark:border-slate-600'
             }`}>
-              {data[d.key] && <span className="text-white text-xs font-bold">✓</span>}
+              {data[d.key] && <Check className="w-3.5 h-3.5 text-white" />}
             </div>
           </button>
         ))}
@@ -320,7 +327,7 @@ export default function OnboardingWizard({ onComplete }) {
         <div>
           <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">Gender</label>
           <div className="grid grid-cols-2 gap-3">
-            {[{ value: 'male', label: 'Male', icon: '👨' }, { value: 'female', label: 'Female', icon: '👩' }].map((g) => (
+            {[{ value: 'male', label: 'Male', icon: User }, { value: 'female', label: 'Female', icon: User }].map((g) => (
               <button
                 key={g.value}
                 type="button"
@@ -331,7 +338,7 @@ export default function OnboardingWizard({ onComplete }) {
                     : 'border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <span className="text-xl">{g.icon}</span>
+                <span className="text-xl text-slate-500"><g.icon className="w-5 h-5" /></span>
                 <span className="font-semibold text-sm text-slate-800 dark:text-white">{g.label}</span>
               </button>
             ))}
@@ -423,13 +430,13 @@ export default function OnboardingWizard({ onComplete }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
             }`}
           >
-            <span className="text-2xl">{level.icon}</span>
+            <span className="text-2xl flex justify-center text-slate-500"><level.icon className="w-6 h-6" /></span>
             <div>
               <p className="font-semibold text-sm text-slate-800 dark:text-white">{level.label}</p>
               <p className="text-xs text-slate-400">{level.desc}</p>
             </div>
             {data.activityLevel === level.value && (
-              <span className="ml-auto text-emerald-600 text-lg">✓</span>
+              <span className="ml-auto text-emerald-600 text-lg"><Check className="w-5 h-5" /></span>
             )}
           </button>
         ))}
@@ -458,13 +465,13 @@ export default function OnboardingWizard({ onComplete }) {
                 : 'border-slate-200 dark:border-slate-700 hover:border-emerald-300'
             }`}
           >
-            <span className="text-4xl">{g.icon}</span>
+            <span className="text-4xl flex justify-center text-slate-500"><g.icon className="w-8 h-8" /></span>
             <div>
               <p className="font-bold text-slate-800 dark:text-white">{g.label}</p>
               <p className="text-sm text-slate-400 mt-0.5">{g.desc}</p>
             </div>
             {data.goal === g.value && (
-              <span className="ml-auto text-emerald-600 text-xl font-bold">✓</span>
+              <span className="ml-auto text-emerald-600 text-xl font-bold"><Check className="w-6 h-6" /></span>
             )}
           </button>
         ))}
@@ -481,13 +488,13 @@ export default function OnboardingWizard({ onComplete }) {
               key={a}
               type="button"
               onClick={() => toggleAllergy(a)}
-              className={`px-4 py-2 rounded-full border-2 text-sm capitalize font-medium transition-all ${
+              className={`px-4 py-2 rounded-full border-2 text-sm capitalize font-medium transition-all flex items-center gap-1.5 ${
                 data.allergies.includes(a)
                   ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700'
                   : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:border-amber-300'
               }`}
             >
-              {data.allergies.includes(a) ? '✓ ' : ''}{a}
+              {data.allergies.includes(a) ? <Check className="w-3.5 h-3.5"/> : ''}{a}
             </button>
           ))}
         </div>
@@ -548,8 +555,9 @@ export default function OnboardingWizard({ onComplete }) {
         {errors.dailyBudget && <p className="text-red-500 text-xs mt-1">{errors.dailyBudget}</p>}
       </div>
 
-      <div className="mt-5 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400">
-        <strong>💡 Tip:</strong> ₨300–500/day is a good range for balanced Pakistani meals. We'll always show real estimated prices.
+      <div className="mt-5 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 rounded-xl text-sm text-amber-700 dark:text-amber-400 flex items-start gap-2">
+        <Lightbulb className="w-5 h-5 flex-shrink-0" />
+        <p><strong>Tip:</strong> ₨300–500/day is a good range for balanced Pakistani meals. We'll always show real estimated prices.</p>
       </div>
     </div>
   )
@@ -567,11 +575,11 @@ export default function OnboardingWizard({ onComplete }) {
       <div className="space-y-3">
         {[
           { label: 'Goal', value: PRIMARY_REASONS.find(r => r.value === data.primaryGoalReason)?.label || data.primaryGoalReason },
-          { label: 'Health Condition', value: data.hasDisease ? '✅ Yes — disease-safe meals will be chosen' : '✅ No conditions' },
+          { label: 'Health Condition', value: data.hasDisease ? 'Yes — disease-safe meals will be chosen' : 'No conditions' },
           ...(data.hasDisease ? [{
             label: 'Conditions', value: DISEASES.filter(d => data[d.key]).map(d => d.label).join(', ') || 'Not specified'
           }] : []),
-          { label: 'Age / Gender', value: `${data.age} years · ${data.gender === 'male' ? '👨 Male' : '👩 Female'}` },
+          { label: 'Age / Gender', value: `${data.age} years · ${data.gender === 'male' ? 'Male' : 'Female'}` },
           { label: 'Weight / Height', value: `${data.weight} kg · ${data.height} cm` },
           { label: 'Activity Level', value: ACTIVITY_LEVELS.find(a => a.value === data.activityLevel)?.label || data.activityLevel },
           { label: 'Fitness Goal', value: GOALS.find(g => g.value === data.goal)?.label || data.goal },
@@ -588,8 +596,9 @@ export default function OnboardingWizard({ onComplete }) {
         ))}
       </div>
 
-      <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm text-emerald-700 dark:text-emerald-400">
-        🎉 After setup, go to <strong>Meal Plan</strong> to generate your first AI-powered 7-day Pakistani diet plan!
+      <div className="mt-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl text-sm text-emerald-700 dark:text-emerald-400 flex items-start gap-2">
+        <PartyPopper className="w-5 h-5 flex-shrink-0" />
+        <p>After setup, go to <strong>Meal Plan</strong> to generate your first AI-powered 7-day Pakistani diet plan!</p>
       </div>
     </div>
   )
@@ -656,7 +665,7 @@ export default function OnboardingWizard({ onComplete }) {
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Setting up your profile...
                   </>
-                ) : '🚀 Complete Setup & Start'}
+                ) : <><Rocket className="w-4 h-4"/> Complete Setup & Start</>}
               </button>
             ) : (
               <button

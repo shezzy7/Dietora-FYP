@@ -63,7 +63,7 @@ export const submitWeeklyCheckIn = createAsyncThunk(
   async ({ progressId, checkInData }, { rejectWithValue }) => {
     try {
       const { data } = await api.post(`/progress/${progressId}/checkin`, checkInData)
-      toast.success('Check-in submitted! Your new meal plan is ready! 🎉')
+      toast.success('Check-in submitted! Your new meal plan is ready!')
       return data
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to submit check-in')

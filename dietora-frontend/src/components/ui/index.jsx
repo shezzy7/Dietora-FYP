@@ -1,3 +1,5 @@
+import { Inbox } from 'lucide-react'
+
 // Spinner
 export function Spinner({ size = 'md', className = '' }) {
   const sizes = { sm: 'w-4 h-4 border-2', md: 'w-8 h-8 border-3', lg: 'w-12 h-12 border-4' }
@@ -17,10 +19,10 @@ export function LoadingOverlay({ text = 'Loading...' }) {
 }
 
 // Empty state
-export function EmptyState({ icon = '📭', title, subtitle, action }) {
+export function EmptyState({ icon = <Inbox className="w-12 h-12 text-slate-400" />, title, subtitle, action }) {
   return (
     <div className="text-center py-16">
-      <p className="text-5xl mb-4">{icon}</p>
+      <div className="flex justify-center mb-4">{icon}</div>
       <h3 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-2">{title}</h3>
       {subtitle && <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 max-w-sm mx-auto">{subtitle}</p>}
       {action}

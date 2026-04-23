@@ -12,7 +12,7 @@ export const fetchGroceryList = createAsyncThunk('grocery/fetch', async (mealPla
       // No list yet — auto-generate from latest meal plan
       try {
         const { data } = await api.post(`/grocery-list/generate/${mealPlanId}`)
-        toast.success('Grocery list generated! 🛒')
+        toast.success('Grocery list generated!')
         return data
       } catch (genErr) {
         return rejectWithValue(genErr.response?.data?.message || 'Failed to generate grocery list')
@@ -26,7 +26,7 @@ export const fetchGroceryList = createAsyncThunk('grocery/fetch', async (mealPla
 export const regenerateGroceryList = createAsyncThunk('grocery/regenerate', async (mealPlanId, { rejectWithValue }) => {
   try {
     const { data } = await api.post(`/grocery-list/generate/${mealPlanId}`)
-    toast.success('Grocery list refreshed! 🛒')
+    toast.success('Grocery list refreshed!')
     return data
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || 'Failed to regenerate list')

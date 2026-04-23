@@ -5,6 +5,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts'
+import { TrendingUp, Flame, Wallet, Salad, Target, CheckCircle2, AlertTriangle, LineChart as ChartIcon } from 'lucide-react'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -92,7 +93,7 @@ export default function ProgressPage() {
         {[
           { label: 'Avg Daily Calories', value: latestPlan ? `${avgCal}` : '—', sub: `Target: ${Math.round(profile?.tdee || 0)} kcal`, color: 'emerald' },
           { label: 'Weekly Spend', value: latestPlan ? `₨${totalSpent}` : '—', sub: `Budget: ₨${(profile?.budgetLimit || 0) * 7}`, color: 'amber' },
-          { label: 'Budget Adherence', value: latestPlan ? `${avgAdh}%` : '—', sub: avgAdh >= 80 ? '✅ On Track' : '⚠️ Needs work', color: avgAdh >= 80 ? 'emerald' : 'red' },
+          { label: 'Budget Adherence', value: latestPlan ? `${avgAdh}%` : '—', sub: avgAdh >= 80 ? <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> On Track</span> : <span className="flex items-center gap-1"><AlertTriangle className="w-3 h-3"/> Needs work</span>, color: avgAdh >= 80 ? 'emerald' : 'red' },
           { label: 'Plans Generated', value: mealPlans?.length || 0, sub: 'Total meal plans', color: 'blue' },
         ].map((s, i) => {
           const colors = { emerald: 'text-emerald-600', amber: 'text-amber-600', blue: 'text-blue-600', red: 'text-red-600' }
@@ -107,8 +108,10 @@ export default function ProgressPage() {
       </div>
 
       {!latestPlan ? (
-        <div className="card text-center py-16">
-          <p className="text-5xl mb-4">📊</p>
+        <div className="card text-center py-16 border-dashed border-2 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ChartIcon className="w-10 h-10 text-blue-600" />
+          </div>
           <h3 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-2">No data yet</h3>
           <p className="text-slate-500 dark:text-slate-400 text-sm">Generate a meal plan to see your progress charts.</p>
         </div>
@@ -116,7 +119,12 @@ export default function ProgressPage() {
         <>
           {/* Calorie Chart */}
           <div className="card">
-            <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5">🔥 Daily Calories vs Target</h3>
+            <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2 text-base">
+              <span className="w-8 h-8 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-amber-600">
+                <Flame className="w-4 h-4" />
+              </span>
+              Daily Calories vs Target
+            </h3>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={calorieData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -132,7 +140,12 @@ export default function ProgressPage() {
 
           {/* Budget Chart */}
           <div className="card">
-            <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5">💰 Daily Spending vs Budget</h3>
+            <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2 text-base">
+              <span className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-emerald-600">
+                <Wallet className="w-4 h-4" />
+              </span>
+              Daily Spending vs Budget
+            </h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={budgetData} margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -150,7 +163,12 @@ export default function ProgressPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Macros Pie */}
             <div className="card">
-              <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5">🥗 Weekly Macros Breakdown</h3>
+              <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2 text-base">
+                <span className="w-8 h-8 bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center text-purple-600">
+                  <Salad className="w-4 h-4" />
+                </span>
+                Weekly Macros Breakdown
+              </h3>
               {macroData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -168,7 +186,12 @@ export default function ProgressPage() {
 
             {/* Adherence */}
             <div className="card">
-              <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5">🎯 Budget Adherence by Day</h3>
+              <h3 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2 text-base">
+                <span className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-blue-600">
+                  <Target className="w-4 h-4" />
+                </span>
+                Budget Adherence by Day
+              </h3>
               <div className="space-y-3">
                 {adherenceData.map((d) => (
                   <div key={d.day} className="flex items-center gap-3">

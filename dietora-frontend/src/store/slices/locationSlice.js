@@ -109,7 +109,7 @@ const locationSlice = createSlice({
         state.resolvedCity = action.payload?.resolvedCity || ''
         state.resolvedArea = action.payload?.resolvedArea || ''
         state.lastUpdated = new Date().toISOString()
-        toast.success('📍 Location saved!')
+        toast.success('Location saved!')
       })
       .addCase(saveLocation.rejected, (state, action) => {
         state.loading = false
@@ -156,7 +156,7 @@ const locationSlice = createSlice({
         state.manualCity = action.payload
         state.locationAsked = true
         state.showLocationModal = false
-        toast.success(`📍 City set to ${action.payload}`)
+        toast.success(`City set to ${action.payload}`)
       })
   },
 })

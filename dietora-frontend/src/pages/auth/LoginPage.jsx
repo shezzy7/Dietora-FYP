@@ -5,6 +5,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { loginUser } from '../../store/slices/authSlice'
 import GoogleAuthButton from '../../components/auth/GoogleAuthButton'
+import { Check, Loader2 } from 'lucide-react'
 
 export default function LoginPage() {
   const dispatch = useDispatch()
@@ -53,7 +54,9 @@ export default function LoginPage() {
           <div className="mt-8 space-y-3">
             {['Personalized 7-day meal plans', 'Disease-safe food filtering', 'Budget optimization in PKR'].map((item) => (
               <div key={item} className="flex items-center gap-2 text-white">
-                <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs">✓</div>
+                <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs">
+                  <Check className="w-3 h-3" />
+                </div>
                 <span className="text-sm">{item}</span>
               </div>
             ))}
@@ -118,7 +121,7 @@ export default function LoginPage() {
             <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base">
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Signing in...
                 </span>
               ) : 'Sign In'}

@@ -1,16 +1,17 @@
 import { NavLink } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../store/slices/authSlice'
+import { LayoutDashboard, User, CalendarDays, ShoppingCart, Wallet, TrendingUp, BookOpen, MessageSquare, Settings, LogOut } from 'lucide-react'
 
 const navItems = [
-  { to: '/dashboard',  icon: '🏠', label: 'Dashboard' },
-  { to: '/profile',    icon: '👤', label: 'Health Profile' },
-  { to: '/meal-plan',  icon: '🍽️', label: 'Meal Planner' },
-  { to: '/grocery',    icon: '🛒', label: 'Grocery List' },
-  { to: '/budget',     icon: '💰', label: 'Budget Optimizer' },
-  { to: '/progress',   icon: '📊', label: 'My Progress' },
-  { to: '/education',  icon: '📚', label: 'Educational Hub' },
-  { to: '/feedback',   icon: '💬', label: 'Feedback' },
+  { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/profile',    icon: User, label: 'Health Profile' },
+  { to: '/meal-plan',  icon: CalendarDays, label: 'Meal Planner' },
+  { to: '/grocery',    icon: ShoppingCart, label: 'Grocery List' },
+  { to: '/budget',     icon: Wallet, label: 'Budget Optimizer' },
+  { to: '/progress',   icon: TrendingUp, label: 'My Progress' },
+  { to: '/education',  icon: BookOpen, label: 'Educational Hub' },
+  { to: '/feedback',   icon: MessageSquare, label: 'Feedback' },
 ]
 
 export default function Sidebar({ open, onClose }) {
@@ -26,7 +27,7 @@ export default function Sidebar({ open, onClose }) {
       {/* Logo */}
       <div className="flex items-center justify-between h-16 px-5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2 font-display font-bold text-xl text-emerald-600">
-          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center shadow-md">
             <span className="text-white text-sm font-black">D</span>
           </div>
           DIETORA
@@ -50,28 +51,31 @@ export default function Sidebar({ open, onClose }) {
       )}
 
       {/* Nav Links */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `sidebar-link ${isActive ? 'active' : ''}`
-            }
-          >
-            <span className="text-base">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `sidebar-link group ${isActive ? 'active' : ''}`
+              }
+            >
+              <Icon className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+              <span>{item.label}</span>
+            </NavLink>
+          )
+        })}
 
         {user?.role === 'admin' && (
           <NavLink
             to="/admin"
             onClick={onClose}
-            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `sidebar-link group ${isActive ? 'active' : ''}`}
           >
-            <span className="text-base">⚙️</span>
+            <Settings className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
             <span>Admin Panel</span>
           </NavLink>
         )}
@@ -81,9 +85,9 @@ export default function Sidebar({ open, onClose }) {
       <div className="px-3 py-4 border-t border-slate-100 dark:border-slate-800">
         <button
           onClick={() => dispatch(logout())}
-          className="sidebar-link w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600"
+          className="sidebar-link w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 group"
         >
-          <span>🚪</span>
+          <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
           <span>Logout</span>
         </button>
       </div>

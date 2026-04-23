@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
 import api from '../services/api'
 import toast from 'react-hot-toast'
+import {
+  Banknote, Zap, BarChart3, CheckCircle2, AlertTriangle, XCircle,
+  Lightbulb, Salad, Leaf, Wheat, Egg, Ban, Store, Loader2
+} from 'lucide-react'
 
 export default function BudgetPage() {
   const { list: mealPlans } = useSelector((s) => s.mealPlan)
@@ -42,7 +46,7 @@ export default function BudgetPage() {
       {/* Budget Input */}
       <div className="card mb-6">
         <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
-          <span className="text-xl">💰</span> Set Your Daily Budget
+          <Banknote className="w-6 h-6 text-amber-500" /> Set Your Daily Budget
         </h2>
         <div className="flex items-end gap-4 flex-wrap">
           <div className="flex-1 min-w-40">
@@ -65,8 +69,8 @@ export default function BudgetPage() {
             className="btn-amber py-3 px-6 flex items-center gap-2"
           >
             {loading ? (
-              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Optimizing...</>
-            ) : '⚡ Optimize Budget'}
+              <><Loader2 className="w-4 h-4 animate-spin" /> Optimizing...</>
+            ) : <><Zap className="w-4 h-4" /> Optimize Budget</>}
           </button>
         </div>
 
@@ -92,7 +96,9 @@ export default function BudgetPage() {
       {/* Budget vs Plan Comparison */}
       {latestPlan && (
         <div className="card mb-6">
-          <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5">📊 Budget Analysis</h2>
+          <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-emerald-500" /> Budget Analysis
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
             <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl">
               <p className="text-2xl font-bold font-display text-amber-600">₨{weeklyBudget}</p>
@@ -122,9 +128,9 @@ export default function BudgetPage() {
                 style={{ width: `${Math.min(adherencePct, 100)}%` }}
               />
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              {adherencePct <= 80 ? '✅ Well within budget — great job!' : adherencePct <= 100 ? '⚠️ Close to budget limit' : '❌ Exceeds budget — optimize below'}
-            </p>
+            <div className="text-xs text-slate-400 mt-1.5 flex items-center gap-1.5">
+              {adherencePct <= 80 ? <><CheckCircle2 className="w-4 h-4 text-emerald-500"/> Well within budget — great job!</> : adherencePct <= 100 ? <><AlertTriangle className="w-4 h-4 text-amber-500"/> Close to budget limit</> : <><XCircle className="w-4 h-4 text-red-500"/> Exceeds budget — optimize below</>}
+            </div>
           </div>
         </div>
       )}
@@ -132,7 +138,9 @@ export default function BudgetPage() {
       {/* Optimization Result */}
       {result && (
         <div className="card animate-slide-up">
-          <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5">⚡ Optimized Meal Suggestions</h2>
+          <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500 fill-amber-500" /> Optimized Meal Suggestions
+          </h2>
           {result.suggestions?.length > 0 ? (
             <div className="space-y-3">
               {result.suggestions.map((s, i) => (
@@ -162,18 +170,20 @@ export default function BudgetPage() {
 
       {/* Tips */}
       <div className="card mt-6">
-        <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4">💡 Budget-Saving Tips</h2>
+        <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 text-amber-400 fill-amber-400" /> Budget-Saving Tips
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { icon: '🫘', tip: 'Use dal (lentils) as primary protein source — cheap and nutritious' },
-            { icon: '🥬', tip: 'Buy seasonal vegetables from local Faisalabad bazaar for 30-50% savings' },
-            { icon: '🍚', tip: 'Cook grains in bulk — rice and daal are cheapest when bought in quantity' },
-            { icon: '🥚', tip: 'Eggs are the most affordable complete protein — great for breakfast' },
-            { icon: '🚫', tip: 'Avoid packaged/processed foods — they cost 3x more per calorie' },
-            { icon: '🏪', tip: 'Shop at local kiryana store instead of supermarkets to save 20%' },
+            { icon: Salad, tip: 'Use dal (lentils) as primary protein source — cheap and nutritious' },
+            { icon: Leaf, tip: 'Buy seasonal vegetables from local Faisalabad bazaar for 30-50% savings' },
+            { icon: Wheat, tip: 'Cook grains in bulk — rice and daal are cheapest when bought in quantity' },
+            { icon: Egg, tip: 'Eggs are the most affordable complete protein — great for breakfast' },
+            { icon: Ban, tip: 'Avoid packaged/processed foods — they cost 3x more per calorie' },
+            { icon: Store, tip: 'Shop at local kiryana store instead of supermarkets to save 20%' },
           ].map((item, i) => (
             <div key={i} className="flex items-start gap-3 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
-              <span className="text-xl flex-shrink-0">{item.icon}</span>
+              <span className="text-xl flex-shrink-0 text-emerald-600"><item.icon className="w-6 h-6" /></span>
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{item.tip}</p>
             </div>
           ))}

@@ -3,6 +3,9 @@ import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { fetchProfile } from '../store/slices/profileSlice'
 import { fetchMealPlans } from '../store/slices/mealPlanSlice'
+import { fetchDashboardStats } from '../store/slices/progressSlice'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { Scale, Flame, Utensils, Wallet, Bot, ShoppingCart, TrendingUp, BookOpen, Hospital, Award } from 'lucide-react'
 
 function StatCard({ icon, label, value, sub, color = 'emerald' }) {
   const colors = {
@@ -14,8 +17,8 @@ function StatCard({ icon, label, value, sub, color = 'emerald' }) {
   }
   return (
     <div className="stat-card">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${colors[color] || colors.emerald}`}>
-        {icon}
+      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${colors[color] || colors.emerald}`}>
+        <Icon className="w-6 h-6" />
       </div>
       <div className="mt-2">
         <p className="text-2xl font-display font-bold text-slate-800 dark:text-white">{value}</p>
@@ -26,18 +29,21 @@ function StatCard({ icon, label, value, sub, color = 'emerald' }) {
   )
 }
 
-function QuickActionCard({ icon, title, desc, to, color }) {
+function QuickActionCard({ icon: Icon, title, desc, to, color }) {
   const colors = {
-    emerald: 'from-emerald-500 to-teal-600',
-    amber: 'from-amber-500 to-orange-600',
-    blue: 'from-blue-500 to-indigo-600',
-    purple: 'from-purple-500 to-pink-600',
+    emerald: 'from-emerald-500 to-teal-600 shadow-emerald-500/20',
+    amber: 'from-amber-500 to-orange-600 shadow-amber-500/20',
+    blue: 'from-blue-500 to-indigo-600 shadow-blue-500/20',
+    purple: 'from-purple-500 to-pink-600 shadow-purple-500/20',
   }
   return (
-    <Link to={to} className={`bg-gradient-to-br ${colors[color]} rounded-2xl p-5 text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 block`}>
-      <span className="text-2xl">{icon}</span>
-      <h3 className="font-display font-bold text-base mt-3">{title}</h3>
-      <p className="text-white/80 text-xs mt-1 leading-relaxed">{desc}</p>
+    <Link to={to} className={`bg-gradient-to-br ${colors[color]} rounded-3xl p-6 text-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 block relative overflow-hidden group`}>
+      <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500"></div>
+      <div className="bg-white/20 w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md mb-4 border border-white/10">
+        <Icon className="w-5 h-5 text-white" />
+      </div>
+      <h3 className="font-display font-bold text-lg mb-1 relative z-10">{title}</h3>
+      <p className="text-white/80 text-xs leading-relaxed relative z-10">{desc}</p>
     </Link>
   )
 }
@@ -47,10 +53,12 @@ export default function DashboardPage() {
   const { user } = useSelector((s) => s.auth)
   const { data: profile } = useSelector((s) => s.profile)
   const { list: mealPlans } = useSelector((s) => s.mealPlan)
+  const { dashboardStats } = useSelector((s) => s.progress)
 
   useEffect(() => {
     dispatch(fetchProfile())
     dispatch(fetchMealPlans())
+    dispatch(fetchDashboardStats())
   }, [dispatch])
 
   const bmi = profile?.bmi
@@ -84,7 +92,7 @@ export default function DashboardPage() {
           <div>
             {/* BUG FIX: firstName is now always defined — no more "Good afternoon, !" */}
             <h1 className="font-display text-2xl font-bold">
-              {greeting()}, {firstName}! 👋
+              {greeting()}, {firstName}!
             </h1>
             <p className="text-emerald-100 mt-1 text-sm">
               {profile
@@ -104,31 +112,30 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
         <StatCard
-          icon="⚖️"
+          icon={Scale}
           label="BMI"
           value={bmi ? bmi.toFixed(1) : '—'}
           sub={bmiStatus.label}
           color={bmiStatus.color}
         />
         <StatCard
-          icon="🔥"
+          icon={Flame}
           label="Daily Calories"
           value={profile?.tdee ? `${Math.round(profile.tdee)}` : '—'}
           sub="TDEE kcal/day"
           color="amber"
         />
         <StatCard
-          icon="🍽️"
+          icon={Utensils}
           label="Meal Plans"
           value={mealPlans?.length || 0}
           sub="Generated"
           color="blue"
         />
-        {/* BUG FIX: was profile?.budgetLimit — correct field is profile?.dailyBudget */}
         <StatCard
-          icon="💰"
+          icon={Wallet}
           label="Daily Budget"
           value={profile?.dailyBudget ? `₨${profile.dailyBudget}` : '—'}
           sub="Per day (PKR)"
@@ -138,14 +145,74 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="font-display font-bold text-lg text-slate-800 dark:text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <QuickActionCard icon="🤖" title="Generate Meal Plan" desc="Create a new 7-day AI plan" to="/meal-plan" color="emerald" />
-          <QuickActionCard icon="🛒" title="Grocery List" desc="View items to purchase" to="/grocery" color="amber" />
-          <QuickActionCard icon="📊" title="My Progress" desc="Track calories & budget" to="/progress" color="blue" />
-          <QuickActionCard icon="📚" title="Learn Nutrition" desc="Articles on healthy eating" to="/education" color="purple" />
+        <h2 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-5">Quick Actions</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          <QuickActionCard icon={Bot} title="Generate Meal Plan" desc="Create a new 7-day AI plan" to="/meal-plan" color="emerald" />
+          <QuickActionCard icon={ShoppingCart} title="Grocery List" desc="View items to purchase" to="/grocery" color="amber" />
+          <QuickActionCard icon={TrendingUp} title="My Progress" desc="Track calories & budget" to="/progress" color="blue" />
+          <QuickActionCard icon={BookOpen} title="Learn Nutrition" desc="Articles on healthy eating" to="/education" color="purple" />
         </div>
       </div>
+
+      {/* Gamified Health Dashboard */}
+      {dashboardStats && (
+        <div className="card border-2 border-emerald-100 dark:border-emerald-900/40 shadow-xl shadow-emerald-900/5">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="lg:w-1/3 flex flex-col justify-center items-center text-center border-b lg:border-b-0 lg:border-r border-slate-100 dark:border-slate-800 pb-8 lg:pb-0 lg:pr-8">
+              <h3 className="font-display font-bold text-slate-800 dark:text-white mb-2">Weekly Health Score</h3>
+              <p className="text-xs text-slate-500 mb-6">Week {dashboardStats.weekNumber} Adherence</p>
+              
+              <div className="relative w-40 h-40 flex items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800 mb-4 shadow-inner">
+                <svg className="absolute inset-0 w-full h-full transform -rotate-90">
+                  <circle cx="80" cy="80" r="70" className="stroke-slate-200 dark:stroke-slate-700" strokeWidth="12" fill="none" />
+                  <circle cx="80" cy="80" r="70" className="stroke-emerald-500 transition-all duration-1000 ease-out" strokeWidth="12" fill="none" strokeDasharray="440" strokeDashoffset={440 - (440 * dashboardStats.healthScore) / 100} strokeLinecap="round" />
+                </svg>
+                <div className="text-center z-10">
+                  <span className="text-4xl font-display font-bold text-emerald-600">{dashboardStats.healthScore}%</span>
+                </div>
+              </div>
+
+              {dashboardStats.healthScore >= 80 ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded-full">
+                  <Award className="w-4 h-4" /> Outstanding!
+                </div>
+              ) : dashboardStats.healthScore >= 50 ? (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
+                  <Flame className="w-4 h-4" /> Keep going!
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold rounded-full">
+                  <TrendingUp className="w-4 h-4" /> You got this!
+                </div>
+              )}
+            </div>
+
+            <div className="lg:w-2/3">
+              <h3 className="font-display font-bold text-slate-800 dark:text-white mb-6">Calorie Intake Trend</h3>
+              <div className="h-[220px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dashboardStats.chartData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorCalories" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      labelStyle={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}
+                    />
+                    <Area type="monotone" dataKey="calories" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCalories)" activeDot={{ r: 6, strokeWidth: 0, fill: '#10b981' }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Health Profile Summary */}
       {profile && (
@@ -229,10 +296,12 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-4xl mb-3">🍽️</p>
+              <div className="text-center py-10">
+                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Utensils className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No meal plans yet</p>
-                <Link to="/meal-plan" className="btn-primary mt-4 inline-block py-2 px-5 text-sm">
+                <Link to="/meal-plan" className="btn-primary mt-6 inline-flex py-2.5 px-6 text-sm">
                   Generate Plan
                 </Link>
               </div>
@@ -243,15 +312,17 @@ export default function DashboardPage() {
 
       {/* No Profile CTA */}
       {!profile && (
-        <div className="card text-center py-12">
-          <p className="text-5xl mb-4">🏥</p>
-          <h3 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-2">
+        <div className="card text-center py-16 border-dashed border-2 border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Hospital className="w-10 h-10 text-emerald-600" />
+          </div>
+          <h3 className="font-display font-bold text-2xl text-slate-800 dark:text-white mb-3">
             Complete your health profile
           </h3>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 max-w-md mx-auto">
-            Add your weight, height, health conditions, and daily budget to get personalized AI meal plans tailored for you.
+          <p className="text-slate-500 dark:text-slate-400 text-base mb-8 max-w-md mx-auto leading-relaxed">
+            Add your weight, height, health conditions, and daily budget to get personalized AI meal plans tailored specifically for you.
           </p>
-          <Link to="/profile" className="btn-primary inline-block py-3 px-8">
+          <Link to="/profile" className="btn-primary inline-flex py-3 px-8 text-base">
             Set Up Health Profile
           </Link>
         </div>

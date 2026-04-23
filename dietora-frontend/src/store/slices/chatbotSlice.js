@@ -43,7 +43,7 @@ const chatbotSlice = createSlice({
       {
         id: 1,
         from: 'bot',
-        text: "Hello! I'm DIETORA's AI nutrition assistant 🌿 Ask me anything about Pakistani foods, calories, diet for diabetes/hypertension, or budget meal planning!",
+        text: "Hello! I'm DIETORA's AI nutrition assistant. Ask me anything about Pakistani foods, calories, diet for diabetes/hypertension, or budget meal planning!",
         time: new Date().toISOString(),
       }
     ],

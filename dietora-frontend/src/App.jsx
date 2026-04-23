@@ -1,15 +1,17 @@
 // src/App.jsx
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchMe } from './store/slices/authSlice'
 import { initTheme } from './store/slices/themeSlice'
 import { fetchMyLocation, showLocationPrompt } from './store/slices/locationSlice'
 import { checkOnboardingStatus } from './store/slices/onboardingSlice'
+import useMealReminders from './hooks/useMealReminders'
 
 // Layouts
 import AppLayout from './components/layout/AppLayout'
 import GuestLayout from './components/layout/GuestLayout'
+import ErrorBoundary from './components/common/ErrorBoundary'
 
 // Guest Pages
 import LandingPage from './pages/LandingPage'
@@ -79,19 +81,27 @@ export default function App() {
     }
   }, [dispatch, token])
 
+  // Real-time meal reminders
+  useMealReminders()
+
+  const locationAskedRef = useRef(locationAsked)
+  useEffect(() => {
+    locationAskedRef.current = locationAsked
+  }, [locationAsked])
+
   useEffect(() => {
     if (!token) return
 
     dispatch(fetchMyLocation()).then((result) => {
       const hasExistingLocation = result?.payload?.locationConsent || result?.payload?.manualCity
-      if (!hasExistingLocation && !locationAsked) {
+      if (!hasExistingLocation && !locationAskedRef.current) {
         setTimeout(() => dispatch(showLocationPrompt()), 2000)
       }
     })
   }, [token, dispatch])
 
   return (
-    <>
+    <ErrorBoundary>
       <Routes>
         {/* Guest Routes */}
         <Route element={<GuestLayout />}>
@@ -132,6 +142,6 @@ export default function App() {
           <LocationPermissionModal />
         </>
       )}
-    </>
+    </ErrorBoundary>
   )
 }

@@ -24,6 +24,16 @@ export const fetchCurrentProgress = createAsyncThunk('progress/fetchCurrent', as
   }
 })
 
+export const fetchDashboardStats = createAsyncThunk('progress/fetchDashboardStats', async (_, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get('/progress/dashboard-stats')
+    return data
+  } catch (err) {
+    if (err.response?.status === 404) return null
+    return rejectWithValue(err.response?.data?.message)
+  }
+})
+
 export const fetchAllProgress = createAsyncThunk('progress/fetchAll', async (_, { rejectWithValue }) => {
   try {
     const { data } = await api.get('/progress')
@@ -58,7 +68,7 @@ export const submitCheckIn = createAsyncThunk('progress/submitCheckIn', async ({
 export const regenerateAfterCheckIn = createAsyncThunk('progress/regenerate', async (progressId, { rejectWithValue }) => {
   try {
     const { data } = await api.post(`/progress/${progressId}/regenerate`)
-    toast.success('New week plan generated! 🎉')
+    toast.success('New week plan generated!')
     return data
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || 'Failed to regenerate plan')
@@ -72,6 +82,7 @@ const progressSlice = createSlice({
   initialState: {
     current: null,       // current WeeklyProgress
     history: [],         // past WeeklyProgress records
+    dashboardStats: null,
     loading: false,
     toggling: null,      // 'day-mealType' key currently being toggled
     submitting: false,
@@ -106,6 +117,11 @@ const progressSlice = createSlice({
       })
       .addCase(fetchCurrentProgress.rejected, (state) => { state.loading = false })
 
+      // Fetch dashboard stats
+      .addCase(fetchDashboardStats.fulfilled, (state, action) => {
+        state.dashboardStats = action.payload?.data || null
+      })
+
       // Fetch all
       .addCase(fetchAllProgress.fulfilled, (state, action) => {
         state.history = action.payload?.data || []
@@ -122,7 +138,7 @@ const progressSlice = createSlice({
         // Check if week is now complete
         if (state.current?.weekCompleted && !state.current?.checkInCompleted) {
           state.showCheckIn = true
-          toast('🎉 Week complete! Please fill in your health check-in.', { icon: '🏆' })
+          toast.success('Week complete! Please fill in your health check-in.')
         }
       })
       .addCase(toggleMeal.rejected, (state, action) => {
