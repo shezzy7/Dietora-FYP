@@ -6,7 +6,10 @@ import mealPlanReducer from './slices/mealPlanSlice'
 import groceryReducer from './slices/grocerySlice'
 import themeReducer from './slices/themeSlice'
 import chatbotReducer from './slices/chatbotSlice'
-import locationReducer from './slices/locationSlice'   // ← NEW
+import locationReducer from './slices/locationSlice'
+import progressReducer from './slices/progressSlice'
+import weeklyProgressReducer from './slices/weeklyProgressSlice'
+import onboardingReducer from './slices/onboardingSlice'
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +19,9 @@ export const store = configureStore({
     grocery: groceryReducer,
     theme: themeReducer,
     chatbot: chatbotReducer,
-    location: locationReducer,   // ← NEW
+    location: locationReducer,
+    progress: progressReducer,
+    weeklyProgress: weeklyProgressReducer,
+    onboarding: onboardingReducer,
   },
 })

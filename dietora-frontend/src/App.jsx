@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { fetchMe } from './store/slices/authSlice'
 import { initTheme } from './store/slices/themeSlice'
 import { fetchMyLocation, showLocationPrompt } from './store/slices/locationSlice'
+import { checkOnboardingStatus } from './store/slices/onboardingSlice'
 
 // Layouts
 import AppLayout from './components/layout/AppLayout'
@@ -28,11 +29,13 @@ import EducationalHubPage from './pages/EducationalHubPage'
 import ProgressPage from './pages/ProgressPage'
 import FeedbackPage from './pages/FeedbackPage'
 import AdminPage from './pages/AdminPage'
-import StoreFinderPage from './pages/StoreFinderPage'   // ← NEW
+import StoreFinderPage from './pages/StoreFinderPage'
+import AccountSettingsPage from './pages/AccountSettingsPage'
 
 // Global UI Components
 import ChatbotWidget from './components/ChatbotWidget'
-import LocationPermissionModal from './components/location/LocationPermissionModal'  // ← NEW
+import LocationPermissionModal from './components/location/LocationPermissionModal'
+import OnboardingWizard from './components/onboarding/OnboardingWizard'
 
 function LoadingSpinner() {
   return (
@@ -45,30 +48,43 @@ function LoadingSpinner() {
 
 function ProtectedRoute({ children }) {
   const { token, initialized } = useSelector((s) => s.auth)
+  const { completed: onboardingCompleted, loading: onboardingLoading } = useSelector((s) => s.onboarding)
+
   if (!initialized) return <LoadingSpinner />
   if (!token) return <Navigate to="/login" replace />
+
+  // Show onboarding wizard for new users who haven't completed setup
+  if (!onboardingLoading && !onboardingCompleted) {
+    return (
+      <>
+        <OnboardingWizard onComplete={() => {}} />
+        <div className="pointer-events-none select-none opacity-0">{children}</div>
+      </>
+    )
+  }
+
   return children
 }
 
 export default function App() {
   const dispatch = useDispatch()
   const { token } = useSelector((s) => s.auth)
-  const { locationAsked, hasConsent } = useSelector((s) => s.location)
+  const { locationAsked } = useSelector((s) => s.location)
 
   useEffect(() => {
     dispatch(initTheme())
-    if (token) dispatch(fetchMe())
+    if (token) {
+      dispatch(fetchMe())
+      dispatch(checkOnboardingStatus())
+    }
   }, [dispatch, token])
 
-  // When user logs in: fetch their saved location.
-  // If they have no saved location and haven't been asked yet → show modal after 2s
   useEffect(() => {
     if (!token) return
 
     dispatch(fetchMyLocation()).then((result) => {
       const hasExistingLocation = result?.payload?.locationConsent || result?.payload?.manualCity
       if (!hasExistingLocation && !locationAsked) {
-        // Delay slightly so app finishes loading before showing modal
         setTimeout(() => dispatch(showLocationPrompt()), 2000)
       }
     })
@@ -100,8 +116,9 @@ export default function App() {
           <Route path="/education" element={<EducationalHubPage />} />
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/feedback" element={<FeedbackPage />} />
-          <Route path="/stores" element={<StoreFinderPage />} />   {/* ← NEW */}
+          <Route path="/stores" element={<StoreFinderPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/account" element={<AccountSettingsPage />} />
         </Route>
 
         {/* 404 */}
@@ -112,7 +129,7 @@ export default function App() {
       {token && (
         <>
           <ChatbotWidget />
-          <LocationPermissionModal />   {/* ← NEW */}
+          <LocationPermissionModal />
         </>
       )}
     </>

@@ -18,7 +18,7 @@ export default function AboutPage() {
           <div>
             <h2 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-4">The Project</h2>
             <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-4">
-              DIETORA is a Final Year Project (FYP) developed at the University of Agriculture Faisalabad (UAF). It addresses a critical problem: the lack of affordable, culturally appropriate, and medically safe nutrition guidance for Pakistani families.
+              DIETORA is a Final Year Project (FYP) developed at the Government College University Faisalabad (GCUF). It addresses a critical problem: the lack of affordable, culturally appropriate, and medically safe nutrition guidance for Pakistani families.
             </p>
             <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
               Most diet apps are designed for Western foods and ignore Pakistani dietary norms, local prices, and prevalent diseases like diabetes and hypertension that affect millions of Pakistanis.

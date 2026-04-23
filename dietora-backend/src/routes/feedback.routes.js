@@ -2,10 +2,13 @@
 
 const express = require('express');
 const router = express.Router();
-const { submit, getMyFeedback, getAll, resolve } = require('../controllers/feedback.controller');
+const { submit, getMyFeedback, getAll, resolve, getPublicReviews } = require('../controllers/feedback.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 const { validate } = require('../middleware/validate.middleware');
 const { feedbackSchema } = require('../validators/feedback.validator');
+
+// @route GET /api/v1/feedback/public  (PUBLIC — no auth)
+router.get('/public', getPublicReviews);
 
 // @route POST /api/v1/feedback
 router.post('/', protect, validate(feedbackSchema), submit);

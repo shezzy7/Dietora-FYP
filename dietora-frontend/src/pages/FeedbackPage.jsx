@@ -15,7 +15,11 @@ export default function FeedbackPage() {
     if (!form.message.trim()) { toast.error('Please write your feedback'); return }
     setLoading(true)
     try {
-      await api.post('/feedback', form)
+      await api.post('/feedback', {
+        rating: form.rating,
+        comment: form.message,
+        category: form.category,
+      })
       setSubmitted(true)
       toast.success('Thank you for your feedback!')
     } catch (err) {

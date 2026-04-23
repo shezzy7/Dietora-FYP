@@ -1,11 +1,13 @@
+// src/store/slices/mealPlanSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
 
+// ─── Thunks ───────────────────────────────────────────────
+
 export const generateMealPlan = createAsyncThunk('mealPlan/generate', async (params, { rejectWithValue }) => {
   try {
     const { data } = await api.post('/meal-plans/generate', params || {})
-    toast.success('7-day meal plan generated! 🎉')
     return data
   } catch (err) {
     const msg = err.response?.data?.message || 'Failed to generate meal plan'
@@ -42,11 +44,9 @@ export const fetchMealPlanById = createAsyncThunk('mealPlan/fetchById', async (i
   }
 })
 
-// Helper: normalize backend meal plan shape to what frontend expects
 function normalizePlan(plan) {
   if (!plan) return null
-  // Backend stores days as array with breakfast/lunch/dinner/snack arrays
-  // Frontend expects days[i].meals = { breakfast, lunch, dinner, snack }
+
   const normalizedDays = (plan.days || []).map((day) => {
     const meals = {}
     ;['breakfast', 'lunch', 'dinner', 'snack'].forEach((mealType) => {
@@ -54,98 +54,113 @@ function normalizePlan(plan) {
       if (slot) {
         const food = slot.foodItem || {}
         meals[mealType] = {
-          name: food.name || 'Unknown',
-          calories: slot.calories || food.calories || 0,
-          protein: slot.protein || food.protein || 0,
-          carbs: slot.carbs || food.carbs || 0,
-          fat: slot.fat || food.fat || 0,
-          price: slot.price || food.price || 0,
-          category: food.category || '',
-          is_diabetic_safe: food.is_diabetic_safe || false,
-          is_hypertension_safe: food.is_hypertension_safe || false,
-          is_cardiac_safe: food.is_cardiac_safe || false,
+          name:                 food.name                   || 'Unknown',
+          calories:             slot.calories               || food.calories  || 0,
+          protein:              slot.protein                || food.protein   || 0,
+          carbs:                slot.carbs                  || food.carbs     || 0,
+          fat:                  slot.fat                    || food.fat       || 0,
+          price:                slot.price                  || food.price     || 0,
+          priceSource:          slot.priceSource            || 'static',
+          category:             food.category               || '',
+          is_diabetic_safe:     food.is_diabetic_safe       || false,
+          is_hypertension_safe: food.is_hypertension_safe   || false,
+          is_cardiac_safe:      food.is_cardiac_safe        || false,
+          is_kidney_safe:       food.is_kidney_safe         || false,
+          is_thyroid_safe:      food.is_thyroid_safe        || false,
         }
       }
     })
     return {
-      day: day.day,
-      dayName: day.dayName,
+      day:           day.day,
+      date:          day.date    || null,
+      dayName:       day.dayName || `Day ${day.day}`,
       meals,
       totalCalories: day.totalCalories || 0,
-      totalProtein: day.totalProtein || 0,
-      totalCarbs: day.totalCarbs || 0,
-      totalFat: day.totalFat || 0,
-      totalCost: day.totalCost || 0,
+      totalProtein:  day.totalProtein  || 0,
+      totalCarbs:    day.totalCarbs    || 0,
+      totalFat:      day.totalFat      || 0,
+      totalCost:     day.totalCost     || 0,
     }
   })
+
   return {
     ...plan,
-    days: normalizedDays,
-    totalCost: plan.weeklyTotalCost || plan.totalCost || 0,
-    totalCalories: plan.weeklyTotalCalories || plan.totalCalories || 0,
+    days:              normalizedDays,
+    totalCost:         plan.weeklyTotalCost     || plan.totalCost     || 0,
+    totalCalories:     plan.weeklyTotalCalories || plan.totalCalories || 0,
+    weeklyTotalCost:   plan.weeklyTotalCost     || plan.totalCost     || 0,
+    avgDailyCost:      plan.avgDailyCost        || 0,
+    avgDailyCalories:  plan.avgDailyCalories    || 0,
+    priceDataSource:    plan.priceDataSource    || 'static',
+    priceSourceSummary: plan.priceSourceSummary || { grounded: 0, ai: 0, static: 0 },
+    priceLastUpdated:   plan.priceLastUpdated   || null,
   }
+}
+
+// ─── Slice ────────────────────────────────────────────────
+const initialState = {
+  current:     null,
+  list:        [],
+  loading:     false,
+  generating:  false,
+  error:       null,
+  selectedDay: 0,
+  progressId:  null,
 }
 
 const mealPlanSlice = createSlice({
   name: 'mealPlan',
-  initialState: {
-    current: null,
-    list: [],
-    loading: false,
-    generating: false,
-    error: null,
-    selectedDay: 0,
-  },
+  initialState,
   reducers: {
-    setSelectedDay(state, action) {
-      state.selectedDay = action.payload
-    },
-    clearCurrent(state) {
-      state.current = null
-    },
-    clearError(state) {
-      state.error = null
-    },
+    setSelectedDay(state, action) { state.selectedDay = action.payload },
+    clearCurrent(state)           { state.current = null },
+    clearError(state)             { state.error   = null },
+    resetState()                  { return initialState },
   },
   extraReducers: (builder) => {
     builder
-      // Generate
-      .addCase(generateMealPlan.pending, (state) => { state.generating = true; state.error = null })
-      .addCase(generateMealPlan.fulfilled, (state, action) => {
-        state.generating = false
-        const raw = action.payload?.data || action.payload
-        state.current = normalizePlan(raw)
-        // Prepend to list
-        if (state.current) state.list = [state.current, ...state.list.slice(0, 9)]
-      })
-      .addCase(generateMealPlan.rejected, (state, action) => {
+      .addCase(generateMealPlan.pending,   (state)         => { state.generating = true; state.error = null })
+      .addCase(generateMealPlan.rejected,  (state, action) => {
         state.generating = false
         state.error = action.payload
         toast.error(action.payload || 'Failed to generate plan')
       })
-      // Fetch all
-      .addCase(fetchMealPlans.pending, (state) => { state.loading = true })
-      .addCase(fetchMealPlans.fulfilled, (state, action) => {
+      .addCase(generateMealPlan.fulfilled, (state, action) => {
+        state.generating = false
+        const raw     = action.payload?.data || action.payload
+        const rawPlan = raw?.mealPlan || raw
+        state.progressId = raw?.progressId || null
+        state.current    = normalizePlan(rawPlan)
+        if (state.current) state.list = [state.current, ...state.list.slice(0, 9)]
+        state.selectedDay = 0
+        const src = state.current?.priceDataSource
+        const srcLabel = src === 'grounded' ? '🌐 Live Google prices'
+          : src === 'ai' ? '🤖 AI-estimated prices'
+          : '📊 Market research prices'
+        toast.success(`Plan ready! Prices from ${srcLabel}`)
+      })
+      .addCase(fetchMealPlans.pending,     (state)         => { state.loading = true })
+      .addCase(fetchMealPlans.fulfilled,   (state, action) => {
         state.loading = false
         const raw = action.payload?.data || []
-        state.list = Array.isArray(raw) ? raw.map(normalizePlan) : []
+        state.list = Array.isArray(raw) ? raw.map(normalizePlan).filter(Boolean) : []
       })
-      .addCase(fetchMealPlans.rejected, (state) => { state.loading = false })
-      // Fetch active
-      .addCase(fetchActivePlan.fulfilled, (state, action) => {
-        if (action.payload?.data) {
-          state.current = normalizePlan(action.payload.data)
-        }
+      .addCase(fetchMealPlans.rejected,    (state)         => { state.loading = false })
+      .addCase(fetchActivePlan.fulfilled,  (state, action) => {
+        if (!action.payload) return
+        const raw     = action.payload?.data || action.payload
+        const rawPlan = raw?.mealPlan || raw
+        if (rawPlan?._id) state.current = normalizePlan(rawPlan)
       })
-      // Fetch by ID
-      .addCase(fetchMealPlanById.pending, (state) => { state.loading = true })
-      .addCase(fetchMealPlanById.fulfilled, (state, action) => {
+      .addCase(fetchMealPlanById.pending,  (state)         => { state.loading = true })
+      .addCase(fetchMealPlanById.fulfilled,(state, action) => {
         state.loading = false
-        state.current = normalizePlan(action.payload?.data || action.payload)
+        const raw = action.payload?.data || action.payload
+        state.current = normalizePlan(raw?.mealPlan || raw)
       })
-      .addCase(fetchMealPlanById.rejected, (state) => { state.loading = false })
+      .addCase(fetchMealPlanById.rejected, (state)         => { state.loading = false })
   },
 })
 
-export const { setSelectedDay, clearCurrent, clearError } = mealPlanSlice.actions
+export const { setSelectedDay, clearCurrent, clearError, resetState: resetMealPlan } = mealPlanSlice.actions
 export default mealPlanSlice.reducer

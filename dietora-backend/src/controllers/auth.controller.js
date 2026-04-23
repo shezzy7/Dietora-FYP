@@ -2,6 +2,12 @@
 
 const axios = require('axios');
 const User = require('../models/User');
+const HealthProfile = require('../models/HealthProfile');
+const MealPlan = require('../models/MealPlan');
+const GroceryList = require('../models/GroceryList');
+const WeeklyProgress = require('../models/WeeklyProgress');
+const Feedback = require('../models/Feedback');
+const UserLocation = require('../models/UserLocation');
 const { sendTokenResponse } = require('../utils/jwt.utils');
 
 // ═══════════════════════════════════════════════════════════
@@ -12,10 +18,6 @@ const { sendTokenResponse } = require('../utils/jwt.utils');
  * fetchGoogleUserInfo
  * Calls Google's userinfo endpoint with the access_token obtained
  * from the browser (implicit flow). Returns verified user data.
- *
- * Endpoint: https://www.googleapis.com/oauth2/v3/userinfo
- * This is simpler than verifying an ID token and works perfectly
- * with the implicit flow from @react-oauth/google.
  */
 const fetchGoogleUserInfo = async (accessToken) => {
   const res = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -23,7 +25,6 @@ const fetchGoogleUserInfo = async (accessToken) => {
     timeout: 8000,
   });
   return res.data;
-  // Returns: { sub, name, email, picture, email_verified, ... }
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -107,22 +108,7 @@ const login = async (req, res, next) => {
 
 /**
  * @route   POST /api/v1/auth/google
- * @desc    Verify Google access token → upsert user in MongoDB → return JWT
  * @access  Public
- *
- * Request body: { accessToken: string }
- *
- * Data stored in MongoDB for Google users:
- *   name          — from Google profile
- *   email         — from Google (lowercase, unique)
- *   googleId      — Google's unique user ID (sub field)
- *   avatar        — Google profile picture URL
- *   authProvider  — 'google'
- *   isEmailVerified — true (Google has already verified it)
- *   role          — 'user' (default)
- *   isActive      — true
- *   lastLogin     — Date.now()
- *   password      — intentionally omitted
  */
 const googleAuth = async (req, res, next) => {
   try {
@@ -135,7 +121,6 @@ const googleAuth = async (req, res, next) => {
       });
     }
 
-    // ── 1. Verify access token by calling Google's userinfo API ──
     let googleUser;
     try {
       googleUser = await fetchGoogleUserInfo(accessToken);
@@ -155,7 +140,6 @@ const googleAuth = async (req, res, next) => {
       email_verified,
     } = googleUser;
 
-    // Validate we got the fields we need
     if (!googleId || !email || !name) {
       return res.status(401).json({
         success: false,
@@ -170,21 +154,17 @@ const googleAuth = async (req, res, next) => {
       });
     }
 
-    // ── 2. Find existing user by googleId OR email ────────
     let user = await User.findOne({ $or: [{ googleId }, { email: email.toLowerCase() }] });
     let isNewUser = false;
 
     if (user) {
-      // ── 3a. Existing user — update Google fields ─────────
       const updates = { lastLogin: new Date() };
 
       if (!user.googleId) {
-        // Previously registered with email/password → link Google to their account
         updates.googleId = googleId;
         updates.authProvider = 'google';
         updates.isEmailVerified = true;
       }
-      // Refresh avatar from Google (it can change)
       if (avatar && user.avatar !== avatar) {
         updates.avatar = avatar;
       }
@@ -194,10 +174,9 @@ const googleAuth = async (req, res, next) => {
 
       user = await User.findByIdAndUpdate(user._id, updates, {
         new: true,
-        runValidators: false, // skip validation since password isn't provided
+        runValidators: false,
       });
     } else {
-      // ── 3b. New user — create from Google data ────────────
       user = await User.create({
         name:            name,
         email:           email.toLowerCase(),
@@ -208,12 +187,10 @@ const googleAuth = async (req, res, next) => {
         role:            'user',
         isActive:        true,
         lastLogin:       new Date(),
-        // password intentionally NOT set — Google users don't need it
       });
       isNewUser = true;
     }
 
-    // ── 4. Check account is active ────────────────────────
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
@@ -221,7 +198,6 @@ const googleAuth = async (req, res, next) => {
       });
     }
 
-    // ── 5. Issue DIETORA JWT ──────────────────────────────
     const firstName = name.split(' ')[0];
     const message = isNewUser
       ? `Welcome to DIETORA, ${firstName}! Your account has been created. 🎉`
@@ -285,4 +261,65 @@ const changePassword = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, googleAuth, getMe, changePassword };
+// ═══════════════════════════════════════════════════════════
+//  DELETE ACCOUNT
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * @route   DELETE /api/v1/auth/delete-account
+ * @desc    Permanently delete the authenticated user and ALL their data.
+ *          - Local users must supply their current password for confirmation.
+ *          - Google OAuth users skip the password check (they already proved
+ *            identity when they obtained the JWT).
+ * @access  Private
+ */
+const deleteAccount = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { password } = req.body;
+
+    // ── 1. Re-verify identity for local accounts ──────────
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (user.authProvider === 'local') {
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please enter your current password to confirm account deletion.',
+        });
+      }
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Incorrect password. Account deletion cancelled.',
+        });
+      }
+    }
+
+    // ── 2. Delete all related data in parallel ────────────
+    await Promise.all([
+      HealthProfile.deleteMany({ user: userId }),
+      MealPlan.deleteMany({ user: userId }),
+      GroceryList.deleteMany({ user: userId }),
+      WeeklyProgress.deleteMany({ user: userId }),
+      Feedback.deleteMany({ user: userId }),
+      UserLocation.deleteMany({ user: userId }),
+    ]);
+
+    // ── 3. Delete the user document itself ────────────────
+    await User.findByIdAndDelete(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Your account and all associated data have been permanently deleted.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, googleAuth, getMe, changePassword, deleteAccount };

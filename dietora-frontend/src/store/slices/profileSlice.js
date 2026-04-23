@@ -1,3 +1,4 @@
+// src/store/slices/profileSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import api from '../../services/api'
 import toast from 'react-hot-toast'
@@ -7,7 +8,6 @@ export const fetchProfile = createAsyncThunk('profile/fetch', async (_, { reject
     const { data } = await api.get('/profile')
     return data
   } catch (err) {
-    // 404 = no profile yet — that's normal, not an error
     if (err.response?.status === 404) return null
     return rejectWithValue(err.response?.data?.message || 'Failed to fetch profile')
   }
@@ -16,7 +16,6 @@ export const fetchProfile = createAsyncThunk('profile/fetch', async (_, { reject
 export const saveProfile = createAsyncThunk('profile/save', async (profileData, { getState, rejectWithValue }) => {
   try {
     const existing = getState().profile.data
-    // Use PUT if profile exists, POST if creating for first time
     const method = existing ? 'put' : 'post'
     const { data } = await api[method]('/profile', profileData)
     toast.success(existing ? 'Health profile updated!' : 'Health profile created!')
@@ -27,17 +26,22 @@ export const saveProfile = createAsyncThunk('profile/save', async (profileData, 
   }
 })
 
+const initialState = {
+  data: null,
+  loading: false,
+  saving: false,
+  error: null,
+}
+
 const profileSlice = createSlice({
   name: 'profile',
-  initialState: {
-    data: null,
-    loading: false,
-    saving: false,
-    error: null,
-  },
+  initialState,
   reducers: {
     clearProfile(state) {
       state.data = null
+    },
+    resetState() {
+      return initialState
     },
   },
   extraReducers: (builder) => {
@@ -64,5 +68,5 @@ const profileSlice = createSlice({
   },
 })
 
-export const { clearProfile } = profileSlice.actions
+export const { clearProfile, resetState: resetProfile } = profileSlice.actions
 export default profileSlice.reducer

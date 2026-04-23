@@ -15,7 +15,9 @@ const budgetRoutes = require('./routes/budget.routes');
 const adminRoutes = require('./routes/admin.routes');
 const feedbackRoutes = require('./routes/feedback.routes');
 const chatbotRoutes = require('./routes/chatbot.routes');
-const locationRoutes = require('./routes/location.routes');  // ← NEW
+const locationRoutes = require('./routes/location.routes');
+const weeklyProgressRoutes = require('./routes/weeklyProgress.routes');
+const onboardingRoutes = require('./routes/onboarding.routes');
 const { notFound, errorHandler } = require('./middleware/error.middleware');
 
 const app = express();
@@ -63,7 +65,12 @@ if (process.env.NODE_ENV !== 'test') {
 
 // ─── Health Check ─────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ success: true, message: 'DIETORA API is running 🥗', timestamp: new Date().toISOString(), version: '1.0.0' });
+  res.json({
+    success: true,
+    message: 'DIETORA API is running 🥗',
+    timestamp: new Date().toISOString(),
+    version: '2.0.0',
+  });
 });
 
 // ─── API Routes ───────────────────────────────────────────
@@ -77,7 +84,9 @@ app.use(`${API}/budget`, budgetRoutes);
 app.use(`${API}/admin`, adminRoutes);
 app.use(`${API}/feedback`, feedbackRoutes);
 app.use(`${API}/chatbot`, chatbotRoutes);
-app.use(`${API}/location`, locationRoutes);   // ← NEW
+app.use(`${API}/location`, locationRoutes);
+app.use(`${API}/progress`, weeklyProgressRoutes);
+app.use(`${API}/onboarding`, onboardingRoutes);
 
 // ─── Error Handlers ───────────────────────────────────────
 app.use(notFound);

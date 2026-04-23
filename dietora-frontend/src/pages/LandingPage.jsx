@@ -1,5 +1,9 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import axios from 'axios'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1'
 
 const features = [
   { icon: '🤖', title: 'AI Meal Planning', desc: 'Get personalized 7-day meal plans based on your health conditions, allergies, and budget — tailored for Pakistani foods.' },
@@ -17,14 +21,78 @@ const stats = [
   { value: '100%', label: 'Budget Aware' },
 ]
 
-const testimonials = [
-  { name: 'Fatima Malik', role: 'Diabetic Patient, Faisalabad', text: 'DIETORA helped me find healthy Pakistani meals that fit my diabetes. My sugar levels improved within 3 weeks!' },
-  { name: 'Ahmed Raza', role: 'Student, UAF', text: 'As a student on a tight budget, the meal planner saves me so much money while keeping me healthy. Love the grocery list feature.' },
-  { name: 'Dr. Sara Khan', role: 'Nutritionist', text: 'The Mifflin-St Jeor BMR calculation and disease filtering are medically sound. I recommend this to my patients.' },
-]
+function StarRating({ rating }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} className={`text-sm ${i <= rating ? 'text-amber-400' : 'text-slate-300 dark:text-slate-600'}`}>★</span>
+      ))}
+    </div>
+  )
+}
+
+function ReviewCard({ review }) {
+  const name = review.user?.name || 'DIETORA User'
+  const initial = name.charAt(0).toUpperCase()
+  const timeAgo = getTimeAgo(review.createdAt)
+
+  return (
+    <div className="card group hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+      <div className="flex items-center justify-between mb-3">
+        <StarRating rating={review.rating} />
+        <span className="text-xs text-slate-400">{timeAgo}</span>
+      </div>
+      <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-4 italic">
+        "{review.comment}"
+      </p>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm">
+          {initial}
+        </div>
+        <div>
+          <p className="font-semibold text-slate-800 dark:text-white text-sm">{name}</p>
+          {review.category && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">{review.category}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function getTimeAgo(dateStr) {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now - date
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+  const diffWeeks = Math.floor(diffDays / 7)
+  const diffMonths = Math.floor(diffDays / 30)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffWeeks < 5) return `${diffWeeks}w ago`
+  return `${diffMonths}mo ago`
+}
 
 export default function LandingPage() {
   const { user } = useSelector((s) => s.auth)
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(true)
+
+  useEffect(() => {
+    axios.get(`${API_BASE}/feedback/public`)
+      .then((res) => {
+        setReviews(res.data?.data || [])
+      })
+      .catch(() => {
+        setReviews([])
+      })
+      .finally(() => setReviewsLoading(false))
+  }, [])
 
   return (
     <div className="overflow-hidden">
@@ -202,32 +270,46 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* User Reviews — Real feedback from actual users */}
       <section className="py-24 bg-white dark:bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="section-title">Trusted by Pakistani families</h2>
-            <p className="section-subtitle">Real results from real users in Faisalabad</p>
+            <h2 className="section-title">What our users say</h2>
+            <p className="section-subtitle">Honest feedback from people using DIETORA</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {testimonials.map((t) => (
-              <div key={t.name} className="card">
-                <div className="flex gap-1 mb-3">
-                  {[1,2,3,4,5].map(i => <span key={i} className="text-amber-400 text-sm">★</span>)}
-                </div>
-                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed mb-4 italic">"{t.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                    {t.name[0]}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-800 dark:text-white text-sm">{t.name}</p>
-                    <p className="text-xs text-slate-400">{t.role}</p>
-                  </div>
-                </div>
+
+          {reviewsLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+            </div>
+          ) : reviews.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {reviews.map((review) => (
+                <ReviewCard key={review._id} review={review} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center text-3xl mx-auto mb-4">
+                💬
               </div>
-            ))}
-          </div>
+              <h3 className="font-display font-bold text-lg text-slate-800 dark:text-white mb-2">
+                Be the first to share your experience!
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto mb-6">
+                Create an account, generate your personalized meal plan, and share how DIETORA is helping you eat healthier.
+              </p>
+              {user ? (
+                <Link to="/feedback" className="btn-primary py-2.5 px-6 text-sm inline-block">
+                  Share Your Feedback →
+                </Link>
+              ) : (
+                <Link to="/register" className="btn-primary py-2.5 px-6 text-sm inline-block">
+                  Get Started Free →
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

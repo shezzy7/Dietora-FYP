@@ -93,4 +93,25 @@ const resolve = async (req, res, next) => {
   }
 };
 
-module.exports = { submit, getMyFeedback, getAll, resolve };
+/**
+ * @route   GET /api/v1/feedback/public
+ * @desc    Get all feedback for public display (landing page)
+ * @access  Public (no auth required)
+ */
+const getPublicReviews = async (req, res, next) => {
+  try {
+    const reviews = await Feedback.find({
+      comment: { $exists: true, $ne: '' },
+    })
+      .populate('user', 'name')
+      .select('rating comment category createdAt user')
+      .sort({ createdAt: -1 })
+      .limit(12);
+
+    return successResponse(res, reviews, 'Public reviews fetched');
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { submit, getMyFeedback, getAll, resolve, getPublicReviews };

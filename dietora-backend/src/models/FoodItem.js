@@ -45,7 +45,6 @@ const foodItemSchema = new mongoose.Schema(
     servingSize: {
       type: String,
       default: '1 serving',
-      // e.g. "1 roti (100g)", "1 cup (240ml)"
     },
     // ─── Disease Safety Flags ────────────────────────────
     is_diabetic_safe: {
@@ -60,23 +59,23 @@ const foodItemSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    is_kidney_safe: {
+      // Low potassium, low phosphorus, controlled protein
+      type: Boolean,
+      default: false,
+    },
+    is_thyroid_safe: {
+      // Avoids raw goitrogens (raw cruciferous veg); cooked is fine
+      type: Boolean,
+      default: false,
+    },
     // ─── Category & Meal Type ────────────────────────────
     category: {
       type: String,
       enum: [
-        'breakfast',
-        'lunch',
-        'dinner',
-        'snack',
-        'bread',
-        'rice',
-        'lentils',
-        'meat',
-        'vegetable',
-        'dairy',
-        'beverage',
-        'fruit',
-        'dessert',
+        'breakfast', 'lunch', 'dinner', 'snack',
+        'bread', 'rice', 'lentils', 'meat',
+        'vegetable', 'dairy', 'beverage', 'fruit', 'dessert',
       ],
       required: [true, 'Category is required'],
     },
@@ -89,7 +88,6 @@ const foodItemSchema = new mongoose.Schema(
     allergens: {
       type: [String],
       default: [],
-      // e.g. ['dairy', 'gluten', 'nuts']
     },
     // ─── Availability ────────────────────────────────────
     isAvailable: {
@@ -108,8 +106,15 @@ const foodItemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for fast filtering
-foodItemSchema.index({ category: 1, is_diabetic_safe: 1, is_hypertension_safe: 1, is_cardiac_safe: 1 });
+// Compound index for fast multi-condition filtering
+foodItemSchema.index({
+  category: 1,
+  is_diabetic_safe: 1,
+  is_hypertension_safe: 1,
+  is_cardiac_safe: 1,
+  is_kidney_safe: 1,
+  is_thyroid_safe: 1,
+});
 foodItemSchema.index({ name: 'text', description: 'text' });
 
 module.exports = mongoose.model('FoodItem', foodItemSchema);

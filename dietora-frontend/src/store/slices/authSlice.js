@@ -26,13 +26,6 @@ export const registerUser = createAsyncThunk('auth/register', async (userData, {
   }
 })
 
-/**
- * googleLogin
- * Sends Google access_token to backend → backend verifies with Google userinfo API
- * → finds or creates user in MongoDB → returns DIETORA JWT
- *
- * payload: { accessToken: string }  (from useGoogleLogin implicit flow)
- */
 export const googleLogin = createAsyncThunk('auth/google', async ({ accessToken }, { rejectWithValue }) => {
   try {
     const { data } = await api.post('/auth/google', { accessToken })
@@ -53,6 +46,31 @@ export const fetchMe = createAsyncThunk('auth/me', async (_, { rejectWithValue }
   }
 })
 
+/**
+ * deleteAccount
+ * Calls DELETE /api/v1/auth/delete-account
+ * Local users must supply { password }; Google users pass {}
+ * On success, clears token + Redux state across all slices.
+ */
+export const deleteAccount = createAsyncThunk('auth/deleteAccount', async (payload, { rejectWithValue, dispatch }) => {
+  try {
+    const { data } = await api.delete('/auth/delete-account', { data: payload })
+    localStorage.removeItem('dietora_token')
+    // Reset every other slice so no stale data lingers in memory
+    dispatch({ type: 'profile/resetState' })
+    dispatch({ type: 'mealPlan/resetState' })
+    dispatch({ type: 'grocery/resetState' })
+    dispatch({ type: 'progress/resetState' })
+    dispatch({ type: 'weeklyProgress/resetState' })
+    dispatch({ type: 'location/resetState' })
+    dispatch({ type: 'onboarding/resetState' })
+    dispatch({ type: 'chatbot/resetState' })
+    return data
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.message || 'Account deletion failed. Please try again.')
+  }
+})
+
 // ─── Slice ────────────────────────────────────────────────
 
 const authSlice = createSlice({
@@ -62,6 +80,7 @@ const authSlice = createSlice({
     token: localStorage.getItem('dietora_token'),
     loading: false,
     initialized: false,
+    deletingAccount: false,
     error: null,
   },
   reducers: {
@@ -119,7 +138,6 @@ const authSlice = createSlice({
         state.user = action.payload.user
         state.token = action.payload.token
         state.initialized = true
-        // Backend sends the right welcome message
         toast.success(action.payload.message || 'Signed in with Google!')
       })
       .addCase(googleLogin.rejected, (state, action) => {
@@ -133,7 +151,6 @@ const authSlice = createSlice({
       .addCase(fetchMe.pending, (state) => { state.loading = true })
       .addCase(fetchMe.fulfilled, (state, action) => {
         state.loading = false
-        // /auth/me returns { success: true, data: userObject }
         state.user = action.payload?.data || action.payload?.user || action.payload
         state.initialized = true
       })
@@ -142,6 +159,25 @@ const authSlice = createSlice({
         state.user = null
         state.token = null
         state.initialized = true
+      })
+
+    // ── Delete Account ────────────────────────────────────
+    builder
+      .addCase(deleteAccount.pending, (state) => {
+        state.deletingAccount = true
+        state.error = null
+      })
+      .addCase(deleteAccount.fulfilled, (state) => {
+        state.deletingAccount = false
+        state.user = null
+        state.token = null
+        state.initialized = true
+        toast.success('Your account has been permanently deleted.')
+      })
+      .addCase(deleteAccount.rejected, (state, action) => {
+        state.deletingAccount = false
+        state.error = action.payload
+        toast.error(action.payload)
       })
   },
 })

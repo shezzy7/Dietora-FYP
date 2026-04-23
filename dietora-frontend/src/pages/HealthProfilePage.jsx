@@ -4,23 +4,34 @@ import { fetchProfile, saveProfile } from '../store/slices/profileSlice'
 import toast from 'react-hot-toast'
 
 const DISEASES = [
-  { key: 'isDiabetic', label: 'Diabetes', icon: '🩸', color: 'blue' },
-  { key: 'isHypertensive', label: 'Hypertension', icon: '❤️', color: 'red' },
-  { key: 'isCardiac', label: 'Cardiac', icon: '🫀', color: 'purple' },
+  { key: 'isDiabetic',       label: 'Diabetes',          icon: '🩸', color: 'blue',   desc: 'Type 2 Diabetes — low-GI, high-fiber foods prioritised' },
+  { key: 'isHypertensive',   label: 'Hypertension',      icon: '❤️', color: 'red',    desc: 'High Blood Pressure — low-sodium meals selected' },
+  { key: 'isCardiac',        label: 'Cardiac Disease',   icon: '🫀', color: 'purple', desc: 'Heart Disease — low-fat, low-cholesterol meals' },
+  { key: 'hasKidneyDisease', label: 'Kidney Disease',    icon: '🫘', color: 'amber',  desc: 'CKD — low potassium, low phosphorus, controlled protein' },
+  { key: 'hasThyroid',       label: 'Thyroid Condition', icon: '🦋', color: 'teal',   desc: 'Thyroid — avoids goitrogens, iodine-safe foods' },
 ]
 const ALLERGIES = ['nuts', 'dairy', 'gluten', 'shellfish', 'eggs', 'soy']
 const ACTIVITY_LEVELS = [
-  { value: 'sedentary', label: 'Sedentary', desc: 'Little/no exercise', icon: '🛋️' },
-  { value: 'lightly_active', label: 'Lightly Active', desc: '1-3 days/week', icon: '🚶' },
-  { value: 'moderately_active', label: 'Moderately Active', desc: '3-5 days/week', icon: '🏃' },
-  { value: 'very_active', label: 'Very Active', desc: '6-7 days/week', icon: '🏋️' },
-  { value: 'extra_active', label: 'Extra Active', desc: 'Physical job + training', icon: '⚡' },
+  { value: 'sedentary',          label: 'Sedentary',         desc: 'Little/no exercise',        icon: '🛋️' },
+  { value: 'lightly_active',     label: 'Lightly Active',    desc: '1-3 days/week',             icon: '🚶' },
+  { value: 'moderately_active',  label: 'Moderately Active', desc: '3-5 days/week',             icon: '🏃' },
+  { value: 'very_active',        label: 'Very Active',       desc: '6-7 days/week',             icon: '🏋️' },
+  { value: 'extra_active',       label: 'Extra Active',      desc: 'Physical job + training',   icon: '⚡' },
 ]
 const GOALS = [
-  { value: 'weight_loss', label: 'Lose Weight', icon: '📉', desc: '500 kcal deficit/day' },
-  { value: 'maintenance', label: 'Maintain Weight', icon: '⚖️', desc: 'Eat at TDEE' },
-  { value: 'weight_gain', label: 'Gain Weight', icon: '📈', desc: '500 kcal surplus/day' },
+  { value: 'weight_loss',  label: 'Lose Weight',    icon: '📉', desc: '500 kcal deficit/day' },
+  { value: 'maintenance',  label: 'Maintain Weight', icon: '⚖️', desc: 'Eat at TDEE' },
+  { value: 'weight_gain',  label: 'Gain Weight',    icon: '📈', desc: '500 kcal surplus/day' },
 ]
+
+// Color mappings for disease toggles
+const DISEASE_COLORS = {
+  blue:   { active: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600',   hover: 'hover:border-blue-300',   badge: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600' },
+  red:    { active: 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600',        hover: 'hover:border-red-300',    badge: 'bg-red-100 dark:bg-red-900/40 text-red-600' },
+  purple: { active: 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600', hover: 'hover:border-purple-300', badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' },
+  amber:  { active: 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700',  hover: 'hover:border-amber-300',  badge: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700' },
+  teal:   { active: 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700',    hover: 'hover:border-teal-300',   badge: 'bg-teal-100 dark:bg-teal-900/40 text-teal-700' },
+}
 
 function BmiMeter({ bmi }) {
   if (!bmi) return null
@@ -28,14 +39,14 @@ function BmiMeter({ bmi }) {
   const pct = ((clampedBmi - 10) / 35) * 100
   const getColor = () => {
     if (bmi < 18.5) return '#3b82f6'
-    if (bmi < 25) return '#10b981'
-    if (bmi < 30) return '#f59e0b'
+    if (bmi < 25)   return '#10b981'
+    if (bmi < 30)   return '#f59e0b'
     return '#ef4444'
   }
   const getLabel = () => {
     if (bmi < 18.5) return 'Underweight'
-    if (bmi < 25) return 'Normal Weight ✓'
-    if (bmi < 30) return 'Overweight'
+    if (bmi < 25)   return 'Normal Weight ✓'
+    if (bmi < 30)   return 'Overweight'
     return 'Obese'
   }
   return (
@@ -47,10 +58,7 @@ function BmiMeter({ bmi }) {
         <span className="text-sm font-bold" style={{ color: getColor() }}>{getLabel()}</span>
       </div>
       <div className="h-3 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: getColor() }}
-        />
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: getColor() }} />
       </div>
       <div className="flex justify-between text-[10px] text-slate-400 mt-1.5">
         <span>Underweight (&lt;18.5)</span>
@@ -70,34 +78,39 @@ export default function HealthProfilePage() {
     age: '', weight: '', height: '', gender: 'male',
     activityLevel: 'moderately_active', goal: 'maintenance',
     isDiabetic: false, isHypertensive: false, isCardiac: false,
+    hasKidneyDisease: false, hasThyroid: false,
     allergies: [], dailyBudget: '',
+    diseaseDescription: '',
   }
 
-  const [form, setForm] = useState(defaultForm)
-  const [bmi, setBmi] = useState(null)
+  const [form, setForm]   = useState(defaultForm)
+  const [bmi, setBmi]     = useState(null)
 
   useEffect(() => { dispatch(fetchProfile()) }, [dispatch])
 
   useEffect(() => {
     if (profile) {
       setForm({
-        age: profile.age || '',
-        weight: profile.weight || '',
-        height: profile.height || '',
-        gender: profile.gender || 'male',
-        activityLevel: profile.activityLevel || 'moderately_active',
-        goal: profile.goal || 'maintenance',
-        isDiabetic: profile.isDiabetic || false,
-        isHypertensive: profile.isHypertensive || false,
-        isCardiac: profile.isCardiac || false,
-        allergies: profile.allergies || [],
-        dailyBudget: profile.dailyBudget || '',
+        age:              profile.age              || '',
+        weight:           profile.weight           || '',
+        height:           profile.height           || '',
+        gender:           profile.gender           || 'male',
+        activityLevel:    profile.activityLevel    || 'moderately_active',
+        goal:             profile.goal             || 'maintenance',
+        isDiabetic:       profile.isDiabetic       || false,
+        isHypertensive:   profile.isHypertensive   || false,
+        isCardiac:        profile.isCardiac         || false,
+        hasKidneyDisease: profile.hasKidneyDisease  || false,
+        hasThyroid:       profile.hasThyroid        || false,
+        allergies:        profile.allergies         || [],
+        dailyBudget:      profile.dailyBudget       || '',
+        diseaseDescription: profile.diseaseDescription || '',
       })
       setBmi(profile.bmi || null)
     }
   }, [profile])
 
-  // Live BMI calculation
+  // Live BMI preview
   useEffect(() => {
     const w = parseFloat(form.weight)
     const h = parseFloat(form.height)
@@ -109,14 +122,18 @@ export default function HealthProfilePage() {
     }
   }, [form.weight, form.height])
 
-  const toggleAllergy = (a) => {
+  const toggleAllergy = (a) =>
     setForm((prev) => ({
       ...prev,
       allergies: prev.allergies.includes(a)
         ? prev.allergies.filter((x) => x !== a)
         : [...prev.allergies, a],
     }))
-  }
+
+  const toggleDisease = (key) =>
+    setForm((prev) => ({ ...prev, [key]: !prev[key] }))
+
+  const anyDisease = form.isDiabetic || form.isHypertensive || form.isCardiac || form.hasKidneyDisease || form.hasThyroid
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -129,17 +146,21 @@ export default function HealthProfilePage() {
       return
     }
     dispatch(saveProfile({
-      age: parseInt(form.age),
-      weight: parseFloat(form.weight),
-      height: parseFloat(form.height),
-      gender: form.gender,
-      activityLevel: form.activityLevel,
-      goal: form.goal,
-      isDiabetic: form.isDiabetic,
-      isHypertensive: form.isHypertensive,
-      isCardiac: form.isCardiac,
-      allergies: form.allergies,
-      dailyBudget: parseInt(form.dailyBudget),
+      age:               parseInt(form.age),
+      weight:            parseFloat(form.weight),
+      height:            parseFloat(form.height),
+      gender:            form.gender,
+      activityLevel:     form.activityLevel,
+      goal:              form.goal,
+      isDiabetic:        form.isDiabetic,
+      isHypertensive:    form.isHypertensive,
+      isCardiac:         form.isCardiac,
+      hasKidneyDisease:  form.hasKidneyDisease,
+      hasThyroid:        form.hasThyroid,
+      allergies:         form.allergies,
+      dailyBudget:       parseInt(form.dailyBudget),
+      diseaseDescription: form.diseaseDescription,
+      hasDisease:        anyDisease,
     }))
   }
 
@@ -159,20 +180,22 @@ export default function HealthProfilePage() {
       <div className="page-header">
         <h1 className="page-title">Health Profile</h1>
         <p className="page-subtitle">
-          {profile ? 'Update your health info — BMI, BMR & TDEE recalculate automatically' : 'Set up your profile to get personalized AI meal plans'}
+          {profile
+            ? 'Update your health info — BMI, BMR & TDEE recalculate automatically'
+            : 'Set up your profile to get personalized AI meal plans'}
         </p>
       </div>
 
-      {/* Auto-calc notice */}
+      {/* AI analysis notice */}
       <div className="mb-6 p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-xl flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">⚡</span>
+        <span className="text-xl flex-shrink-0">🤖</span>
         <div className="text-sm text-emerald-700 dark:text-emerald-400">
-          <strong>Auto-calculated:</strong> BMI, BMR (Mifflin-St Jeor), TDEE, and daily calorie targets are computed automatically on the backend when you save.
+          <strong>Two-Phase AI Analysis:</strong> When you generate a meal plan, Gemini first performs a clinical health analysis of your profile, then selects each meal individually based on your medical conditions. The more accurately you fill this form, the better your plan will be.
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Info */}
+        {/* ── Basic Info ─────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-5 flex items-center gap-2 text-base">
             <span className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-sm">👤</span>
@@ -208,7 +231,7 @@ export default function HealthProfilePage() {
           <BmiMeter bmi={bmi} />
         </div>
 
-        {/* Goal */}
+        {/* ── Goal ───────────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
             <span className="w-7 h-7 bg-purple-100 dark:bg-purple-900/40 rounded-lg flex items-center justify-center text-sm">🎯</span>
@@ -230,7 +253,7 @@ export default function HealthProfilePage() {
           </div>
         </div>
 
-        {/* Activity Level */}
+        {/* ── Activity Level ─────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
             <span className="w-7 h-7 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-sm">🏃</span>
@@ -252,37 +275,75 @@ export default function HealthProfilePage() {
           </div>
         </div>
 
-        {/* Health Conditions */}
+        {/* ── Health Conditions ──────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-base">
             <span className="w-7 h-7 bg-red-100 dark:bg-red-900/40 rounded-lg flex items-center justify-center text-sm">🏥</span>
-            Health Conditions
+            Medical Conditions
           </h2>
-          <p className="text-xs text-slate-400 mb-4">Meal plans will be filtered to only include medically safe foods</p>
-          <div className="flex gap-3 flex-wrap">
-            {DISEASES.map((d) => (
-              <button key={d.key} type="button"
-                onClick={() => setForm((prev) => ({ ...prev, [d.key]: !prev[d.key] }))}
-                className={`px-5 py-3 rounded-xl border-2 font-medium text-sm transition-all duration-150 flex items-center gap-2 ${
-                  form[d.key]
-                    ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600'
-                    : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-red-300'
-                }`}>
-                <span>{d.icon}</span>
-                <span>{d.label}</span>
-                {form[d.key] && <span className="text-xs bg-red-100 dark:bg-red-900/40 text-red-600 px-1.5 py-0.5 rounded-full">ON</span>}
-              </button>
-            ))}
+          <p className="text-xs text-slate-400 mb-4">
+            The AI performs a clinical analysis of each condition and selects only medically safe foods.
+            Select all that apply — multiple conditions are handled simultaneously.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {DISEASES.map((d) => {
+              const colors = DISEASE_COLORS[d.color]
+              const isOn   = form[d.key]
+              return (
+                <button
+                  key={d.key}
+                  type="button"
+                  onClick={() => toggleDisease(d.key)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all duration-150 ${
+                    isOn
+                      ? colors.active
+                      : `border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400 ${colors.hover}`
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{d.icon}</span>
+                      <span className="font-semibold text-sm">{d.label}</span>
+                    </div>
+                    {isOn && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${colors.badge}`}>ON</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 leading-relaxed mt-1">{d.desc}</p>
+                </button>
+              )
+            })}
           </div>
+
+          {/* Free-text disease description — feeds directly into AI Phase 1 prompt */}
+          {anyDisease && (
+            <div className="mt-4">
+              <label className="label">
+                Describe your condition in your own words
+                <span className="font-normal text-slate-400 ml-1">(optional but improves AI analysis)</span>
+              </label>
+              <textarea
+                value={form.diseaseDescription}
+                onChange={(e) => setForm({ ...form, diseaseDescription: e.target.value })}
+                placeholder="e.g. I have been diabetic for 5 years. My blood sugar is usually around 180-200 mg/dL. My doctor says I have stage 3 kidney disease and I need to limit potassium..."
+                rows={3}
+                className="w-full border-2 border-slate-200 dark:border-slate-600 rounded-xl p-3 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 resize-none mt-1"
+              />
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1.5 flex items-center gap-1">
+                <span>🤖</span>
+                This description is sent directly to the AI clinical analysis — more detail = better personalisation
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Allergies */}
+        {/* ── Allergies ──────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-base">
             <span className="w-7 h-7 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-sm">⚠️</span>
             Food Allergies
           </h2>
-          <p className="text-xs text-slate-400 mb-4">Selected allergens will be excluded from all meal suggestions</p>
+          <p className="text-xs text-slate-400 mb-4">All allergens are strictly excluded from every meal slot</p>
           <div className="flex gap-2 flex-wrap">
             {ALLERGIES.map((a) => (
               <button key={a} type="button" onClick={() => toggleAllergy(a)}
@@ -297,7 +358,7 @@ export default function HealthProfilePage() {
           </div>
         </div>
 
-        {/* Budget */}
+        {/* ── Budget ─────────────────────────────────────── */}
         <div className="card">
           <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
             <span className="w-7 h-7 bg-amber-100 dark:bg-amber-900/40 rounded-lg flex items-center justify-center text-sm">💰</span>
@@ -326,15 +387,15 @@ export default function HealthProfilePage() {
           </div>
         </div>
 
-        {/* Profile summary preview if editing */}
+        {/* ── Calculated Values Preview ─────────────────── */}
         {profile?.tdee && (
           <div className="card bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800">
             <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3">📊 Current Calculated Values</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: 'BMI', value: profile.bmi?.toFixed(1) || '—', unit: '' },
-                { label: 'BMR', value: Math.round(profile.bmr) || '—', unit: 'kcal' },
-                { label: 'TDEE', value: Math.round(profile.tdee) || '—', unit: 'kcal/day' },
+                { label: 'BMI',    value: profile.bmi?.toFixed(1) || '—',               unit: '' },
+                { label: 'BMR',    value: Math.round(profile.bmr) || '—',               unit: 'kcal' },
+                { label: 'TDEE',   value: Math.round(profile.tdee) || '—',              unit: 'kcal/day' },
                 { label: 'Target', value: Math.round(profile.dailyCalorieTarget) || '—', unit: 'kcal/day' },
               ].map((item) => (
                 <div key={item.label} className="text-center">
