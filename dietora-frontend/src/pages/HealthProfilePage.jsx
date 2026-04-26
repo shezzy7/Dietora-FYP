@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchProfile, saveProfile } from '../store/slices/profileSlice'
 import toast from 'react-hot-toast'
-import { Droplets, Heart, Activity, Pill, Fingerprint, Armchair, PersonStanding, Dumbbell, Zap, TrendingDown, Scale, TrendingUp, User, Target, Stethoscope, AlertTriangle, Coins, Bot, Loader2, Save, Rocket, ActivitySquare, Check, BarChart3 } from 'lucide-react'
+import { Droplets, Heart, Activity, Pill, Fingerprint, Armchair, PersonStanding, Dumbbell, Zap, TrendingDown, Scale, TrendingUp, User, Target, Stethoscope, AlertTriangle, Coins, Bot, Loader2, Save, Rocket, ActivitySquare, Check, BarChart3, Wind, Beaker, Weight } from 'lucide-react'
 
 const DISEASES = [
   { key: 'isDiabetic',       label: 'Diabetes',          icon: Droplets, color: 'blue',   desc: 'Type 2 Diabetes — low-GI, high-fiber foods prioritised' },
@@ -10,6 +10,10 @@ const DISEASES = [
   { key: 'isCardiac',        label: 'Cardiac Disease',   icon: Activity, color: 'purple', desc: 'Heart Disease — low-fat, low-cholesterol meals' },
   { key: 'hasKidneyDisease', label: 'Kidney Disease',    icon: Pill, color: 'amber',  desc: 'CKD — low potassium, low phosphorus, controlled protein' },
   { key: 'hasThyroid',       label: 'Thyroid Condition', icon: Fingerprint, color: 'teal',   desc: 'Thyroid — avoids goitrogens, iodine-safe foods' },
+  // ── Additional conditions from NutriGuide Pakistan proposal ──────────────
+  { key: 'hasConstipation',  label: 'Constipation',      icon: Wind,        color: 'green',  desc: 'Digestive issues — high-fiber, gut-friendly foods prioritised' },
+  { key: 'hasAnemia',        label: 'Anemia',            icon: Beaker,      color: 'rose',   desc: 'Iron deficiency — iron-rich foods + Vitamin C for absorption' },
+  { key: 'hasObesity',       label: 'Obesity',           icon: Scale,       color: 'orange', desc: 'Weight management — low-calorie, high-satiety, high-fiber meals' },
 ]
 const ALLERGIES = ['nuts', 'dairy', 'gluten', 'shellfish', 'eggs', 'soy']
 const ACTIVITY_LEVELS = [
@@ -32,6 +36,9 @@ const DISEASE_COLORS = {
   purple: { active: 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600', hover: 'hover:border-purple-300', badge: 'bg-purple-100 dark:bg-purple-900/40 text-purple-600' },
   amber:  { active: 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 text-amber-700',  hover: 'hover:border-amber-300',  badge: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700' },
   teal:   { active: 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 text-teal-700',    hover: 'hover:border-teal-300',   badge: 'bg-teal-100 dark:bg-teal-900/40 text-teal-700' },
+  green:  { active: 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700', hover: 'hover:border-green-300',  badge: 'bg-green-100 dark:bg-green-900/40 text-green-700' },
+  rose:   { active: 'border-rose-500 bg-rose-50 dark:bg-rose-900/20 text-rose-700',    hover: 'hover:border-rose-300',   badge: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700' },
+  orange: { active: 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 text-orange-700', hover: 'hover:border-orange-300', badge: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700' },
 }
 
 function BmiMeter({ bmi }) {
@@ -80,6 +87,7 @@ export default function HealthProfilePage() {
     activityLevel: 'moderately_active', goal: 'maintenance',
     isDiabetic: false, isHypertensive: false, isCardiac: false,
     hasKidneyDisease: false, hasThyroid: false,
+    hasConstipation: false, hasAnemia: false, hasObesity: false,
     allergies: [], dailyBudget: '',
     diseaseDescription: '',
   }
@@ -103,6 +111,9 @@ export default function HealthProfilePage() {
         isCardiac:        profile.isCardiac         || false,
         hasKidneyDisease: profile.hasKidneyDisease  || false,
         hasThyroid:       profile.hasThyroid        || false,
+        hasConstipation:  profile.hasConstipation   || false,
+        hasAnemia:        profile.hasAnemia         || false,
+        hasObesity:       profile.hasObesity        || false,
         allergies:        profile.allergies         || [],
         dailyBudget:      profile.dailyBudget       || '',
         diseaseDescription: profile.diseaseDescription || '',
@@ -134,7 +145,7 @@ export default function HealthProfilePage() {
   const toggleDisease = (key) =>
     setForm((prev) => ({ ...prev, [key]: !prev[key] }))
 
-  const anyDisease = form.isDiabetic || form.isHypertensive || form.isCardiac || form.hasKidneyDisease || form.hasThyroid
+  const anyDisease = form.isDiabetic || form.isHypertensive || form.isCardiac || form.hasKidneyDisease || form.hasThyroid || form.hasConstipation || form.hasAnemia || form.hasObesity
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -158,6 +169,9 @@ export default function HealthProfilePage() {
       isCardiac:         form.isCardiac,
       hasKidneyDisease:  form.hasKidneyDisease,
       hasThyroid:        form.hasThyroid,
+      hasConstipation:   form.hasConstipation,
+      hasAnemia:         form.hasAnemia,
+      hasObesity:        form.hasObesity,
       allergies:         form.allergies,
       dailyBudget:       parseInt(form.dailyBudget),
       diseaseDescription: form.diseaseDescription,

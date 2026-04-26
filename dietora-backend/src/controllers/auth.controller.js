@@ -322,4 +322,65 @@ const deleteAccount = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, googleAuth, getMe, changePassword, deleteAccount };
+// ═══════════════════════════════════════════════════════════
+//  RESET ACCOUNT
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * @route   POST /api/v1/auth/reset-account
+ * @desc    Delete ALL user activity data but keep the account itself.
+ *          Removes: HealthProfile, MealPlans, GroceryLists,
+ *          WeeklyProgress, Feedback, UserLocation.
+ *          - Local users must supply their current password.
+ *          - Google OAuth users skip the password check.
+ * @access  Private
+ */
+const resetAccount = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { password } = req.body;
+
+    // ── 1. Re-verify identity for local accounts ──────────
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (user.authProvider === 'local') {
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please enter your current password to confirm account reset.',
+        });
+      }
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Incorrect password. Account reset cancelled.',
+        });
+      }
+    }
+
+    // ── 2. Delete all activity data in parallel ───────────
+    const results = await Promise.all([
+      HealthProfile.deleteMany({ user: userId }),
+      MealPlan.deleteMany({ user: userId }),
+      GroceryList.deleteMany({ user: userId }),
+      WeeklyProgress.deleteMany({ user: userId }),
+      Feedback.deleteMany({ user: userId }),
+      UserLocation.deleteMany({ user: userId }),
+    ]);
+
+    const totalDeleted = results.reduce((sum, r) => sum + (r.deletedCount || 0), 0);
+
+    return res.status(200).json({
+      success: true,
+      message: `Account reset successful. ${totalDeleted} records deleted. Your account is now fresh.`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { register, login, googleAuth, getMe, changePassword, deleteAccount, resetAccount };

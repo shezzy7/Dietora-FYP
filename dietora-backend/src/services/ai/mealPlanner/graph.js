@@ -1,51 +1,67 @@
 // src/services/ai/mealPlanner/graph.js
-const { StateGraph, END } = require("@langchain/langgraph");
-const { MealPlannerState } = require("./state");
-const { 
-  analyzeHealthProfileNode, 
-  filterFoodsNode, 
-  generateMealPlanNode, 
-  validatePlanNode 
-} = require("./nodes");
+// DIETORA — LangGraph Workflow
 
-// Build the LangGraph workflow
+'use strict';
+
+const { StateGraph, END } = require('@langchain/langgraph');
+const { MealPlannerState } = require('./state');
+const {
+  analyzeHealthProfileNode,
+  filterFoodsNode,
+  generateMealPlanNode,
+  validatePlanNode,
+} = require('./nodes');
+
 const buildMealPlannerGraph = () => {
   const workflow = new StateGraph(MealPlannerState)
-    .addNode("analyze_profile", analyzeHealthProfileNode)
-    .addNode("filter_foods", filterFoodsNode)
-    .addNode("generate_plan", generateMealPlanNode)
-    .addNode("validate_plan", validatePlanNode)
-    
-    // Set Entry Point
-    .addEdge("__start__", "analyze_profile")
-    
-    // Analyze -> Filter -> Generate -> Validate
-    .addEdge("analyze_profile", "filter_foods")
-    .addEdge("filter_foods", "generate_plan")
-    .addEdge("generate_plan", "validate_plan")
-    
-    // Conditional edge from Validate
+    .addNode('analyze_profile', analyzeHealthProfileNode)
+    .addNode('filter_foods',    filterFoodsNode)
+    .addNode('generate_plan',   generateMealPlanNode)
+    .addNode('validate_plan',   validatePlanNode)
+
+    .addEdge('__start__',       'analyze_profile')
+    .addEdge('analyze_profile', 'filter_foods')
+    .addEdge('filter_foods',    'generate_plan')
+    .addEdge('generate_plan',   'validate_plan')
+
     .addConditionalEdges(
-      "validate_plan",
+      'validate_plan',
       (state) => {
-        // If no errors, we are done
-        if (!state.validationErrors || state.validationErrors.length === 0) {
-          return "success";
+        const hasErrors = state.validationErrors && state.validationErrors.length > 0;
+
+        if (!hasErrors) {
+          console.log('[LangGraph] ✔ Routing: success → END');
+          return 'success';
         }
-        // If errors exist but we exceeded retry limit (e.g., 3), exit to prevent infinite loop
+
         if (state.generationAttempts >= 3) {
-          console.warn("[LangGraph] Max retries reached. Forcing exit with current (possibly flawed) plan.");
-          return "max_retries";
+          console.error(
+            `[LangGraph] ✘ Routing: max_retries hit after ${state.generationAttempts} attempts. ` +
+            `Unresolved errors: ${state.validationErrors.join(' | ')}`
+          );
+          return 'max_retries';
         }
-        // Otherwise, loop back to generation to fix errors
-        return "retry";
+
+        console.warn(
+          `[LangGraph] ↻ Routing: retry (attempt ${state.generationAttempts}/3). ` +
+          `${state.validationErrors.length} validation error(s).`
+        );
+        return 'retry';
       },
       {
-        success: END,
-        max_retries: END,
-        retry: "generate_plan"
+        success:     END,
+        max_retries: 'fail_node',
+        retry:       'generate_plan',
       }
-    );
+    )
+
+    .addNode('fail_node', async (state) => {
+      const errorSummary = (state.validationErrors || []).join('; ');
+      throw new Error(
+        `[MealPlanner] AI failed to produce a valid plan after 3 attempts. ` +
+        `Last validation errors: ${errorSummary}`
+      );
+    });
 
   return workflow.compile();
 };

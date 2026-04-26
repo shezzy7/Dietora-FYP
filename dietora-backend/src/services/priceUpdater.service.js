@@ -1,416 +1,287 @@
 // src/services/priceUpdater.service.js
 // DIETORA — Real-Time Pakistani Food Price Engine
 //
-// Architecture (3-tier, waterfall):
+// Uses @google/genai (NEW SDK) with proper Google Search grounding.
+// Old @google/generative-ai had broken grounding for Gemini 2.5.
 //
-//   Tier 1 — Gemini 2.5 Flash WITH Google Search Grounding
-//     The model is given the googleSearch tool, which forces it to query Google
-//     before answering. This gives us real, sourced, current PKR market prices —
-//     not hallucinations from stale training data.
-//     Ref: https://ai.google.dev/gemini-api/docs/grounding
-//
-//   Tier 2 — Gemini 2.5 Flash WITHOUT grounding (fallback)
-//     If grounding fails (quota, tool unavailable), we ask Gemini to reason
-//     from its most recent training knowledge about Pakistani prices.
-//     Better than random DB seeds — but not live data.
-//
-//   Tier 3 — Curated static baseline prices
-//     A hard-coded map of researched Faisalabad/Lahore/Karachi 2024-2025
-//     market prices per food item. This is the final safety net — the system
-//     NEVER returns a zero price.
-//
-// Caching:
-//   Grounded prices are cached for 4 hours.
-//   Tier 2 prices are cached for 2 hours.
-//   Static prices are never cached (they are the cache).
-//
-// Concurrency:
-//   All foods in a plan are priced in a single batched Gemini call (not N calls).
-//   This avoids rate limiting and keeps generation time under 3 seconds.
+// Flow:
+//   1. Check in-memory cache (4hr TTL for grounded, 24hr for static)
+//   2. Tier 1: @google/genai → Gemini 2.5 Flash + Google Search grounding
+//      → verify response has groundingMetadata (proof it actually searched)
+//      → run price guard to reject out-of-range values
+//   3. Tier 2: static baseline (April 2026 Faisalabad research)
+//      → only used if Tier 1 completely fails OR guard rejects the price
 
 'use strict';
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenAI } = require('@google/genai');
 
-// ─── Gemini client (lazy singleton) ──────────────────────
-let _genAI = null;
+// ─── Client (lazy singleton, new SDK) ─────────────────────
+let _ai = null;
 const getClient = () => {
-  if (!_genAI) {
+  if (!_ai) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) throw new Error('GEMINI_API_KEY is missing from .env');
-    _genAI = new GoogleGenerativeAI(key);
+    _ai = new GoogleGenAI({ apiKey: key });
   }
-  return _genAI;
+  return _ai;
 };
 
-// ─── In-memory price cache ────────────────────────────────
-// Structure: Map<foodName, { price: number, source: string, fetchedAt: number }>
-const _priceCache = new Map();
-const TTL_GROUNDED  = 4 * 60 * 60 * 1000; // 4 hours  — live search data
-const TTL_AI        = 2 * 60 * 60 * 1000; // 2 hours  — AI reasoning data
-const TTL_STATIC    = 24 * 60 * 60 * 1000; // 24 hours — static baseline
+// ─── In-memory price cache ─────────────────────────────────
+const _cache = new Map();
+const TTL_GROUNDED = 4  * 60 * 60 * 1000;
+const TTL_STATIC   = 24 * 60 * 60 * 1000;
 
-const _isCacheValid = (entry, ttl) =>
-  entry && (Date.now() - entry.fetchedAt) < ttl;
-
-const _getCacheEntry = (name) => {
-  const entry = _priceCache.get(name);
-  if (!entry) return null;
-  const ttl = entry.source === 'grounded' ? TTL_GROUNDED
-    : entry.source === 'ai' ? TTL_AI
-    : TTL_STATIC;
-  return _isCacheValid(entry, ttl) ? entry : null;
+const getCached = (name) => {
+  const e = _cache.get(name);
+  if (!e) return null;
+  const ttl = e.source === 'grounded' ? TTL_GROUNDED : TTL_STATIC;
+  return Date.now() - e.at < ttl ? e : null;
 };
-
-const _setCache = (name, price, source) => {
-  _priceCache.set(name, { price, source, fetchedAt: Date.now() });
-};
+const setCache = (name, price, source) =>
+  _cache.set(name, { price, source, at: Date.now() });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TIER 3 — Static baseline prices (PKR, Faisalabad/Lahore/Karachi, April 2025)
-//
-// Researched from:
-//   - Pakistan Bureau of Statistics weekly SPI reports
-//   - Utility Stores Corporation price lists
-//   - Local market surveys (Faisalabad, Lahore, Karachi)
-//
-// These are serving-level prices (what you pay for one portion in a meal).
-// Prices are intentionally slightly conservative — better to under-promise.
+// STATIC BASELINE (April 2026 Faisalabad, dhaba serving-level prices)
+// Source: UrduPoint daily market rates, chickenratetoday.pk, local survey
 // ─────────────────────────────────────────────────────────────────────────────
-const STATIC_PRICES = {
-  // Breakfast
-  'Aloo Paratha':               60,
-  'Halwa Puri':                 90,
-  'Anda Paratha':               70,
-  'Doodh Pati Chai':            25,
-  'Namkeen Lassi':              50,
-  'Meethi Lassi':               60,
-  'Anday ka Nashta':            65,
-  'Khichdi':                    50,
-  'Boiled Egg White Breakfast': 45,
-  'Oats Porridge (Dalia)':      50,
-  'Sattu Sharbat':              35,
-  'Egg and Rice Bowl':          80,
+const STATIC = {
+  'Aloo Paratha': 130, 'Halwa Puri': 150, 'Anda Paratha': 140,
+  'Doodh Pati Chai': 30, 'Namkeen Lassi': 70, 'Meethi Lassi': 80,
+  'Anday ka Nashta': 90, 'Khichdi': 70, 'Boiled Egg White Breakfast': 60,
+  'Oats Porridge (Dalia)': 60, 'Sattu Sharbat': 40, 'Nihari with Naan': 250,
+  'Paye (Trotters Soup)': 180,
+  'Tandoori Roti': 25, 'Chapati (Phulka)': 15, 'Naan': 40,
+  'Paratha (Plain)': 50, 'Missi Roti': 25, 'Bajra Roti': 20,
+  'Dal Masoor': 100, 'Dal Mash': 120, 'Dal Chana': 110,
+  'Chana Masala': 120, 'Moong Dal (Yellow)': 95, 'Kala Chana': 110,
+  'Dal Makhani': 140, 'Lauki Dal (Low Protein)': 85,
+  'Chicken Karahi': 420, 'Chicken Roast (Desi)': 380, 'Beef Qeema': 320,
+  'Mutton Karahi': 550, 'Chicken Tikka (Grilled)': 400,
+  'Steamed Fish (Rohu)': 280, 'Chicken Soup (Yakhni)': 150,
+  'Grilled Chicken Breast': 350, 'Chapli Kebab': 200, 'Seekh Kebab': 180,
+  'Beef Nihari': 280, 'Aloo Gosht': 270, 'Karahi Gosht': 580,
+  'Shami Kebab': 150, 'Chicken Korma': 400, 'Liver (Kaleji) Masala': 200,
+  'Fish Karahi (Machli)': 360, 'Aloo Keema': 260, 'Kadu (Pumpkin) Gosht': 250,
+  'Shaljam Gosht': 230,
+  'Saag (Sarson ka)': 120, 'Bhindi Masala': 90, 'Karela (Bitter Gourd)': 85,
+  'Tinda Masala': 85, 'Palak Sabzi (Spinach)': 90,
+  'Lauki (Bottle Gourd) Sabzi': 80, 'Turai (Ridge Gourd) Sabzi': 80,
+  'Aloo Matar': 100, 'Baingan Bharta': 95, 'Gobi Masala (Cauliflower)': 90,
+  'Aloo Gobi': 100, 'Palak Paneer': 180, 'Methi (Fenugreek) Sabzi': 90,
+  'Arvi (Taro Root) Masala': 90, 'Band Gobi (Cabbage) Sabzi': 75,
+  'Plain Boiled Rice': 60, 'Chicken Biryani': 280, 'Mutton Biryani': 380,
+  'Matar Pulao': 130, 'Brown Rice (Unpolished)': 75, 'Yakhni Pulao': 220,
+  'Dahi (Plain Yogurt)': 70, 'Raita': 55, 'Low-Fat Milk (1 glass)': 55,
+  'Paneer (Cottage Cheese)': 150,
+  'Samosa (Baked)': 60, 'Fruit Chaat': 100, 'Roasted Chana': 40,
+  'Cucumber Salad (Kheera)': 35, 'Green Tea': 30, 'Pakora (Besan)': 70,
+  'Gol Gappa (Pani Puri)': 50, 'Chana Chaat': 90, 'Mixed Nuts (Small Portion)': 120,
+  'Apple (1 medium)': 60, 'Guava (Amrood)': 40, 'Banana': 30,
+  'Papaya (Papita)': 50, 'Mango (Aam)': 100, 'Kinnow (Citrus)': 40,
+  'Watermelon (Tarbooz)': 40, 'Pomegranate (Anar)': 120, 'Dates (Khajoor)': 130,
+  'Grapes (Angoor)': 90, 'Pear (Naashpati)': 60, 'Strawberry (Strawberry)': 110,
+  'Gajar Halwa': 110, 'Kheer (Rice Pudding)': 100,
+  'Sewaiyan (Vermicelli Pudding)': 90, 'Zarda (Sweet Rice)': 110,
+  'Rice Porridge with Egg White': 80,
+};
 
-  // Bread
-  'Tandoori Roti':              20,
-  'Chapati (Phulka)':           12,
-  'Naan':                       30,
+const staticPrice = (name, dbPrice) => STATIC[name] ?? dbPrice ?? 80;
 
-  // Lentils
-  'Dal Masoor':                 80,
-  'Dal Mash':                   90,
-  'Dal Chana':                  85,
-  'Chana Masala':               95,
-  'Moong Dal (Yellow)':         75,
-  'Lauki Dal (Low Protein)':    60,
+// ─── Per-category price guards ────────────────────────────
+const GUARDS = {
+  roti:    [15,  90],
+  daal:    [75, 220],
+  chicken: [280, 750],
+  mutton:  [380, 950],
+  beef:    [220, 650],
+  fish:    [180, 550],
+  sabzi:   [60, 250],
+  rice:    [50, 500],
+  dairy:   [35, 220],
+  drink:   [20, 160],
+  snack:   [25, 220],
+  fruit:   [20, 160],
+  dessert: [70, 220],
+  default: [25, 900],
+};
 
-  // Meat
-  'Chicken Karahi':             280,
-  'Chicken Roast (Desi)':       240,
-  'Beef Qeema':                 220,
-  'Mutton Karahi':              380,
-  'Chicken Tikka (Grilled)':    300,
-  'Steamed Fish (Rohu)':        200,
-  'Chicken Soup (Yakhni)':      110,
-  'Grilled Chicken Breast':     280,
-  'Roasted Chicken with Rice':  250,
-  'Cooked Carrots with Chicken': 180,
+const guard = (name) => {
+  const n = name.toLowerCase();
+  if (/roti|chapati|naan|paratha/.test(n))              return GUARDS.roti;
+  if (/\bdal\b|\bdaal\b|chana masala|kala chana/.test(n)) return GUARDS.daal;
+  if (/chicken/.test(n))                                return GUARDS.chicken;
+  if (/mutton|karahi gosht/.test(n))                    return GUARDS.mutton;
+  if (/beef|qeema|nihari|kaleji/.test(n))               return GUARDS.beef;
+  if (/fish|machli|rohu/.test(n))                       return GUARDS.fish;
+  if (/sabzi|saag|bhindi|karela|tinda|lauki|turai|palak|baingan|gobi|methi|arvi|band gobi/.test(n)) return GUARDS.sabzi;
+  if (/rice|pulao|biryani|khichdi/.test(n))             return GUARDS.rice;
+  if (/milk|dahi|yogurt|raita|paneer|lassi/.test(n))    return GUARDS.dairy;
+  if (/chai|tea|sharbat|lassi|drink/.test(n))           return GUARDS.drink;
+  if (/samosa|pakora|chaat|kebab|chana|nuts|gappa|cucumber/.test(n)) return GUARDS.snack;
+  if (/apple|guava|banana|papaya|mango|kinnow|tarbooz|anar|khajoor|grape|pear|strawberry/.test(n)) return GUARDS.fruit;
+  if (/halwa|kheer|sewaiyan|zarda/.test(n))             return GUARDS.dessert;
+  return GUARDS.default;
+};
 
-  // Vegetables
-  'Saag (Sarson)':              90,
-  'Aloo Gosht':                 200,
-  'Bhindi Masala':              80,
-  'Karela (Bitter Gourd)':      65,
-  'Tinda Masala':               70,
-  'Palak Paneer':               150,
-  'Lauki (Bottle Gourd) Sabzi': 60,
-  'Turai (Ridge Gourd) Sabzi':  60,
-  'Aloo Matar':                 85,
-  'Gajar Gosht (Carrot Curry)': 160,
-
-  // Rice
-  'Plain Boiled Rice':          40,
-  'Chicken Biryani':            220,
-  'Matar Pulao':                100,
-  'Brown Rice (Unpolished)':    55,
-
-  // Dairy
-  'Dahi (Plain Yogurt)':        55,
-  'Raita':                      40,
-  'Low-Fat Milk (1 glass)':     40,
-
-  // Snacks & Beverages
-  'Samosa (Baked)':             40,
-  'Fruit Chaat':                80,
-  'Roasted Chana':              30,
-  'Seasonal Fruit (Mixed)':     70,
-  'Apple (1 medium)':           45,
-  'Guava (Amrood)':             30,
-  'Mixed Nuts (Small Portion)': 100,
-  'Cucumber Salad (Kheera)':    25,
-  'Boiled Potato (Plain)':      30,
-  'Green Tea':                  20,
-  'Rice Porridge with Egg White': 65,
+const validPrice = (name, price) => {
+  const [min, max] = guard(name);
+  return Number.isFinite(price) && price >= min && price <= max;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TIER 1 — Gemini with Google Search Grounding
-//
-// We send ALL food names in one batch call. Gemini uses googleSearch to find
-// current Pakistani market prices for each item, then returns a JSON map.
-//
-// The googleSearch tool is a native Gemini API feature — it queries Google
-// internally and grounds the response in real search results.
+// TIER 1 — New SDK (@google/genai) with verified Google Search grounding
 // ─────────────────────────────────────────────────────────────────────────────
-const fetchPricesGrounded = async (foodNames) => {
-  if (!foodNames.length) return {};
-
+const fetchGrounded = async (foodNames) => {
   const today = new Date().toLocaleDateString('en-PK', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
 
-  const prompt = `
-Today is ${today}. You are a Pakistani food market pricing analyst.
+  const prompt = `Today is ${today}. You are a Pakistani food market analyst in Faisalabad.
 
-Search Google for the CURRENT retail prices of the following food items in Pakistani cities (Faisalabad, Lahore, Karachi).
-These are SERVING-LEVEL prices — what a single person pays for one meal portion at a local market, dhaba, or kiryana store.
+Search Google for CURRENT prices of these food items. Return ONE integer PKR price per item.
 
-Food items to price:
-${foodNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}
+CRITICAL: These are DHABA/HOME COOKING SERVING PRICES — what 1 person pays for 1 portion.
+NOT per-kg rates. NOT per-maund. NOT restaurant prices. NOT wholesale.
 
-SEARCH INSTRUCTIONS:
-- Search for each item's current price in PKR in Pakistani markets
-- Focus on April 2025 prices from Pakistan Bureau of Statistics, local market reports, or food price surveys
-- Use serving/portion sizes (not per-kg bulk prices):
-  * Roti/Chapati: price per piece
-  * Dal/Sabzi: price for one bowl (250g serving)
-  * Chicken dishes: price for one plate/serving
-  * Drinks: price per glass/cup
-  * Snacks: price for standard portion
+Serving size guide:
+- Roti/Naan/Paratha = price per single piece (NOT per dozen)
+- Dal/Sabzi = price per bowl 250g (NOT per kg)
+- Chicken Karahi = price for 1-person serving ~300g (NOT full handi)
+- Mutton Karahi = price for 1-person serving ~300g (NOT full handi)  
+- Biryani/Pulao = price per plate ~350g
+- Drinks/Lassi = price per glass/cup
+- Fruit = price per piece or per small serving
 
-After searching, return ONLY a valid JSON object. No explanation. No markdown. No backticks.
-Format: { "Exact Food Name": price_as_integer_pkr }
+Search for: "Faisalabad food prices April 2026 dhaba"
 
-Example: { "Tandoori Roti": 20, "Dal Masoor": 85, "Chicken Karahi": 280 }
+Return ONLY a JSON object, no markdown, no explanation:
+{ "Food Name": <integer_pkr_price> }
 
-Keys must exactly match the food names I listed. Return all ${foodNames.length} items.
-`.trim();
+Items:
+${foodNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}`;
 
-  const model = getClient().getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: {
-      temperature: 0.1,
+  const ai = getClient();
+
+  const response = await ai.models.generateContent({
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      tools: [{ googleSearch: {} }],
+      temperature: 0.05,
       maxOutputTokens: 2048,
     },
-    tools: [{ googleSearch: {} }],
   });
 
-  const result  = await model.generateContent(prompt);
-  const raw     = result.response.text().trim();
-  const cleaned = raw
-    .replace(/^```(?:json)?\s*/im, '')
-    .replace(/\s*```\s*$/m, '')
-    .trim();
+  // ── Verify grounding actually happened ────────────────────
+  const meta = response.candidates?.[0]?.groundingMetadata;
+  const queries = meta?.webSearchQueries || [];
+  if (queries.length === 0) {
+    throw new Error('Gemini did not perform any Google Search queries — grounding failed silently');
+  }
+  console.log(`[PriceEngine] Google Search queries used: ${queries.join(' | ')}`);
 
-  // Extract JSON — sometimes Gemini prepends a sentence before the JSON block
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON object found in grounded response');
+  const raw     = response.text;
+  const cleaned = raw.replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim();
+  const match   = cleaned.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error(`No JSON in grounded response. Raw: ${cleaned.slice(0, 200)}`);
 
-  const parsed = JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(match[0]);
 
-  // Validate: must be object with numeric values
+  // ── Apply price guards ────────────────────────────────────
   const valid = {};
   for (const [k, v] of Object.entries(parsed)) {
     const n = parseInt(v, 10);
-    if (n > 0 && n < 50000) valid[k] = n; // sanity-check range (PKR 1–50,000)
+    if (validPrice(k, n)) {
+      valid[k] = n;
+    } else {
+      const [min, max] = guard(k);
+      console.warn(`[PriceEngine] Guard REJECTED: "${k}" → PKR ${n}  (allowed: ${min}–${max})`);
+    }
+  }
+
+  const hitRate = Object.keys(valid).length;
+  console.log(`[PriceEngine] Guard passed: ${hitRate}/${foodNames.length} items`);
+
+  if (hitRate === 0) {
+    throw new Error('All prices rejected by guard — response was not serving-level prices');
   }
 
   return valid;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TIER 2 — Gemini WITHOUT grounding (AI knowledge fallback)
-//
-// Same prompt, same JSON format, but no Google Search tool.
-// Gemini draws from its training data about Pakistani food prices.
-// Less accurate than grounded, but better than random DB seeds.
-// ─────────────────────────────────────────────────────────────────────────────
-const fetchPricesAI = async (foodNames) => {
-  if (!foodNames.length) return {};
-
-  const today = new Date().toLocaleDateString('en-PK', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
-
-  const prompt = `
-Today is ${today}. You are a Pakistani food market pricing expert with deep knowledge of current Pakistani food prices.
-
-Provide REALISTIC current retail prices for the following food items in Pakistani Rupees (PKR).
-These are SERVING-LEVEL prices as of early 2025 in Faisalabad, Lahore, or Karachi:
-
-${foodNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}
-
-Price guidelines for Pakistan 2025:
-- Tandoori Roti: PKR 15-25 per piece
-- Dal serving (bowl): PKR 70-120
-- Sabzi serving (bowl): PKR 60-100
-- Chicken dish serving: PKR 200-350
-- Mutton dish serving: PKR 300-450
-- Beverages (tea/lassi): PKR 20-70
-- Snack portion: PKR 25-80
-- Fruit portion: PKR 30-80
-
-Return ONLY valid JSON. No markdown. No explanation. No backticks.
-Format: { "Exact Food Name": price_as_integer_pkr }
-All ${foodNames.length} items must be included.
-`.trim();
-
-  const model = getClient().getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 1024,
-    },
-    // No tools — pure knowledge-based response
-  });
-
-  const result  = await model.generateContent(prompt);
-  const raw     = result.response.text().trim();
-  const cleaned = raw
-    .replace(/^```(?:json)?\s*/im, '')
-    .replace(/\s*```\s*$/m, '')
-    .trim();
-
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('No JSON object found in AI response');
-
-  const parsed = JSON.parse(jsonMatch[0]);
-
-  const valid = {};
-  for (const [k, v] of Object.entries(parsed)) {
-    const n = parseInt(v, 10);
-    if (n > 0 && n < 50000) valid[k] = n;
-  }
-
-  return valid;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 3 — Static lookup
-//
-// Pure synchronous lookup from the researched static table above.
-// Always available, never fails.
-// ─────────────────────────────────────────────────────────────────────────────
-const getStaticPrice = (foodName, dbPrice) => {
-  const staticPrice = STATIC_PRICES[foodName];
-  // Prefer static research price; fall back to DB seed price if not in table
-  return staticPrice || dbPrice || 50;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN — getPricesForFoods
-//
-// Takes an array of food items and returns them with accurate current PKR prices.
-// Uses cache first, then waterfall through Tier 1 → Tier 2 → Tier 3.
-//
-// @param {Array<{ _id, name, price }>} foodItems
-// @returns {Promise<Array<{ _id, name, price, priceSource }>>}
+// getPricesForFoods — core pricing function
 // ─────────────────────────────────────────────────────────────────────────────
 const getPricesForFoods = async (foodItems) => {
-  if (!foodItems || foodItems.length === 0) return [];
+  if (!foodItems?.length) return [];
 
-  const result      = new Map(); // name → enriched item
-  const needsFetch  = [];
+  const result     = new Map();
+  const needsFetch = [];
 
-  // ── Step 1: Serve from cache wherever possible ────────
+  // Serve from cache
   for (const item of foodItems) {
-    const cached = _getCacheEntry(item.name);
-    if (cached) {
-      result.set(item.name, { ...item, price: cached.price, priceSource: cached.source });
-      console.log(`[PriceEngine] Cache hit: ${item.name} → PKR ${cached.price} (${cached.source})`);
+    const hit = getCached(item.name);
+    if (hit) {
+      result.set(item.name, { ...item, price: hit.price, priceSource: hit.source });
+      console.log(`[PriceEngine] Cache HIT: ${item.name} → PKR ${hit.price} (${hit.source})`);
     } else {
       needsFetch.push(item);
     }
   }
 
-  if (needsFetch.length === 0) {
-    console.log(`[PriceEngine] All ${foodItems.length} prices served from cache.`);
-    return foodItems.map((f) => result.get(f.name) || f);
-  }
+  if (!needsFetch.length) return foodItems.map((f) => result.get(f.name) || f);
 
   const names = needsFetch.map((f) => f.name);
-  console.log(`[PriceEngine] Fetching prices for ${names.length} items: ${names.join(', ')}`);
+  console.log(`\n[PriceEngine] ── Fetching live prices for ${names.length} items ──`);
 
-  let priceMap  = {};
-  let source    = 'static';
+  let groundedMap = {};
+  let groundingWorked = false;
 
-  // ── Step 2: Try Tier 1 — Grounded Gemini search ──────
+  // Tier 1: New SDK + verified Google Search
   try {
-    console.log('[PriceEngine] Tier 1: Gemini + Google Search grounding...');
-    priceMap = await fetchPricesGrounded(names);
-    const hitCount = Object.keys(priceMap).length;
-    console.log(`[PriceEngine] Tier 1 success: ${hitCount}/${names.length} prices fetched from Google Search.`);
-    source = 'grounded';
-  } catch (tier1Err) {
-    console.warn(`[PriceEngine] Tier 1 failed: ${tier1Err.message}`);
-
-    // ── Step 3: Try Tier 2 — AI knowledge fallback ─────
-    try {
-      console.log('[PriceEngine] Tier 2: Gemini AI knowledge fallback...');
-      priceMap = await fetchPricesAI(names);
-      const hitCount = Object.keys(priceMap).length;
-      console.log(`[PriceEngine] Tier 2 success: ${hitCount}/${names.length} prices from AI knowledge.`);
-      source = 'ai';
-    } catch (tier2Err) {
-      console.warn(`[PriceEngine] Tier 2 failed: ${tier2Err.message}. Falling back to static prices.`);
-      // priceMap stays empty — everything goes to static
-    }
+    groundedMap     = await fetchGrounded(names);
+    groundingWorked = true;
+    console.log(`[PriceEngine] ✅ Grounding SUCCESS — ${Object.keys(groundedMap).length} prices from live Google Search`);
+  } catch (err) {
+    console.error(`[PriceEngine] ❌ Grounding FAILED: ${err.message}`);
+    console.log('[PriceEngine] → Falling back to static prices for unresolved items');
   }
 
-  // ── Step 4: Resolve each item using best available price ──
+  // Resolve each item
   for (const item of needsFetch) {
-    // Try AI/grounded price first — fuzzy match to handle minor name differences
-    let price = priceMap[item.name];
+    // Try exact match from grounded response
+    let livePrice = groundedMap[item.name];
 
-    if (!price || price <= 0) {
-      // Try case-insensitive match
-      const lowerName = item.name.toLowerCase();
-      for (const [k, v] of Object.entries(priceMap)) {
-        if (k.toLowerCase() === lowerName) { price = v; break; }
+    // Try case-insensitive match
+    if (!livePrice) {
+      const lower = item.name.toLowerCase();
+      for (const [k, v] of Object.entries(groundedMap)) {
+        if (k.toLowerCase() === lower) { livePrice = v; break; }
       }
     }
 
-    const itemSource = (price && price > 0) ? source : 'static';
-    const finalPrice = (price && price > 0) ? price : getStaticPrice(item.name, item.price);
+    const useGrounded  = groundingWorked && livePrice && validPrice(item.name, livePrice);
+    const finalPrice   = useGrounded ? livePrice : staticPrice(item.name, item.price);
+    const finalSource  = useGrounded ? 'grounded' : 'static';
 
-    _setCache(item.name, finalPrice, itemSource);
-    result.set(item.name, { ...item, price: finalPrice, priceSource: itemSource });
-
-    console.log(`[PriceEngine] ${item.name}: PKR ${finalPrice} (${itemSource})`);
+    setCache(item.name, finalPrice, finalSource);
+    result.set(item.name, { ...item, price: finalPrice, priceSource: finalSource });
+    console.log(`[PriceEngine] ${useGrounded ? '🌐' : '📊'} ${item.name}: PKR ${finalPrice} (${finalSource})`);
   }
 
-  // Return in original order
   return foodItems.map((f) => result.get(f.name) || { ...f, priceSource: 'static' });
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// updateMealPlanPrices
-//
-// Takes a fully-populated MealPlan Mongoose document and refreshes all
-// slot prices with real-time data. Saves the source tag on each slot.
-// Recalculates day totals and weekly totals.
-//
-// @param {Object} mealPlan — populated MealPlan document (or plain object)
-// @returns {Object} — plan object with updated prices ready to save to DB
+// updateMealPlanPrices — updates all meal slot prices on a populated MealPlan
 // ─────────────────────────────────────────────────────────────────────────────
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 const updateMealPlanPrices = async (mealPlan) => {
   if (!mealPlan?.days) return mealPlan;
 
-  // ── Collect unique food items across all 7 days ───────
-  const foodMap = new Map(); // id_string → { _id, name, price }
+  const foodMap = new Map();
   for (const day of mealPlan.days) {
     for (const mt of MEAL_TYPES) {
       for (const slot of (day[mt] || [])) {
@@ -418,79 +289,63 @@ const updateMealPlanPrices = async (mealPlan) => {
         if (!food) continue;
         const id = String(food._id || food);
         if (!foodMap.has(id)) {
-          foodMap.set(id, {
-            _id:   food._id || food,
-            name:  food.name  || '',
-            price: slot.price || food.price || 50,
-          });
+          foodMap.set(id, { _id: food._id || food, name: food.name || '', price: slot.price || food.price || 80 });
         }
       }
     }
   }
 
   const uniqueFoods = Array.from(foodMap.values()).filter((f) => f.name);
-  if (uniqueFoods.length === 0) return mealPlan;
+  if (!uniqueFoods.length) return mealPlan;
 
-  console.log(`[PriceEngine] Updating prices for ${uniqueFoods.length} unique food items in meal plan.`);
+  console.log(`\n[PriceEngine] ══ Starting price update for ${uniqueFoods.length} unique items ══`);
   const pricedFoods = await getPricesForFoods(uniqueFoods);
 
-  // Build name → { price, priceSource } lookup
-  const priceLookup = new Map();
-  for (const f of pricedFoods) {
-    priceLookup.set(f.name, { price: f.price, priceSource: f.priceSource });
-  }
+  const lookup = new Map();
+  for (const f of pricedFoods) lookup.set(f.name, { price: f.price, priceSource: f.priceSource });
 
-  // ── Apply updated prices to plan object ───────────────
   const planObj = typeof mealPlan.toObject === 'function'
     ? mealPlan.toObject()
     : JSON.parse(JSON.stringify(mealPlan));
 
   for (const day of planObj.days) {
     let dayTotal = 0;
-
     for (const mt of MEAL_TYPES) {
       for (const slot of (day[mt] || [])) {
-        const foodName = slot.foodItem?.name;
-        if (foodName && priceLookup.has(foodName)) {
-          const { price, priceSource } = priceLookup.get(foodName);
+        const name = slot.foodItem?.name;
+        if (name && lookup.has(name)) {
+          const { price, priceSource } = lookup.get(name);
           slot.price       = price;
-          slot.priceSource = priceSource; // 'grounded' | 'ai' | 'static'
+          slot.priceSource = priceSource;
         }
         dayTotal += slot.price || 0;
       }
     }
-
     day.totalCost = parseFloat(dayTotal.toFixed(2));
   }
 
-  // ── Recalculate weekly totals ─────────────────────────
-  planObj.weeklyTotalCost = parseFloat(
-    planObj.days.reduce((s, d) => s + (d.totalCost || 0), 0).toFixed(2)
-  );
-  planObj.avgDailyCost = parseFloat((planObj.weeklyTotalCost / 7).toFixed(2));
+  planObj.weeklyTotalCost = parseFloat(planObj.days.reduce((s, d) => s + (d.totalCost || 0), 0).toFixed(2));
+  planObj.avgDailyCost    = parseFloat((planObj.weeklyTotalCost / 7).toFixed(2));
 
-  // ── Attach price source summary for frontend display ──
   const sources = pricedFoods.reduce((acc, f) => {
     acc[f.priceSource] = (acc[f.priceSource] || 0) + 1;
     return acc;
   }, {});
+
   planObj.priceSourceSummary = sources;
+  planObj.priceDataSource    = Object.entries(sources).sort((a, b) => b[1] - a[1])[0]?.[0] || 'static';
 
-  const dominantSource = Object.entries(sources).sort((a, b) => b[1] - a[1])[0]?.[0] || 'static';
-  planObj.priceDataSource = dominantSource; // 'grounded' | 'ai' | 'static'
-
-  console.log(`[PriceEngine] Price update complete. Source breakdown:`, sources);
+  const groundedCount = sources.grounded || 0;
+  const staticCount   = sources.static   || 0;
+  console.log(`\n[PriceEngine] ══ Done: 🌐 ${groundedCount} grounded | 📊 ${staticCount} static ══\n`);
 
   return planObj;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// getSingleItemPrice — utility for one-off price lookups
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Utilities ─────────────────────────────────────────────
 const getSingleItemPrice = async (foodName, fallbackPrice) => {
-  const cached = _getCacheEntry(foodName);
-  if (cached) return cached.price;
-
+  const hit = getCached(foodName);
+  if (hit) return hit.price;
   try {
     const items = await getPricesForFoods([{ name: foodName, price: fallbackPrice }]);
     return items[0]?.price || fallbackPrice;
@@ -499,12 +354,9 @@ const getSingleItemPrice = async (foodName, fallbackPrice) => {
   }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// clearPriceCache — for admin/testing use
-// ─────────────────────────────────────────────────────────────────────────────
 const clearPriceCache = () => {
-  _priceCache.clear();
-  console.log('[PriceEngine] Price cache cleared.');
+  _cache.clear();
+  console.log('[PriceEngine] Cache cleared.');
 };
 
 module.exports = { getPricesForFoods, getSingleItemPrice, updateMealPlanPrices, clearPriceCache };

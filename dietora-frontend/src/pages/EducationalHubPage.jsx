@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Droplets, Heart, Activity, Microscope, Dumbbell, Scale, BookOpen, Search, ArrowLeft, ShieldAlert } from 'lucide-react'
+import { Droplets, Heart, Activity, Microscope, Dumbbell, Scale, BookOpen, Search, ArrowLeft, ShieldAlert, Globe, ExternalLink } from 'lucide-react'
 
 const ARTICLES = [
   {
@@ -104,6 +104,118 @@ const colorMap = {
   emerald: { badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800' },
   amber: { badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800' },
   teal: { badge: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400', border: 'border-teal-200 dark:border-teal-800' },
+}
+
+// ── WHO / NIH Guidelines Panel ────────────────────────────
+// Added per NutriGuide Pakistan proposal: "integrating scientifically verified
+// guidelines from credible sources such as the World Health Organization (WHO)
+// and National Institutes of Health (NIH)"
+const WHO_NIH_GUIDELINES = [
+  {
+    source: 'WHO',
+    color: 'blue',
+    title: 'Healthy Diet — Key Facts',
+    guidelines: [
+      'Adults should consume at least 400g (5 portions) of fruits and vegetables per day.',
+      'Free sugars should make up less than 10% of total energy intake (~50g/day for adults).',
+      'Fat intake should not exceed 30% of total energy; replace saturated fats with unsaturated fats.',
+      'Salt intake should be less than 5g (about 1 teaspoon) per day to prevent hypertension.',
+      'Fiber intake should be at least 25g per day from whole grains, legumes, fruits, and vegetables.',
+    ],
+    link: 'https://www.who.int/news-room/fact-sheets/detail/healthy-diet',
+    linkLabel: 'WHO Healthy Diet Fact Sheet',
+  },
+  {
+    source: 'NIH',
+    color: 'emerald',
+    title: 'Dietary Guidelines — Evidence Base',
+    guidelines: [
+      'Protein: 0.8g per kg of body weight per day for sedentary adults; higher for active individuals.',
+      'Carbohydrates should provide 45–65% of daily calories; choose whole grains over refined.',
+      'Sodium: Less than 2,300mg per day (about 1 teaspoon of salt) for all adults.',
+      'Calcium: 1,000mg/day for adults; found in dairy, fortified foods, and leafy greens.',
+      'Iron: 8mg/day for men; 18mg/day for women of childbearing age — dal, meat, and spinach are great Pakistani sources.',
+      'Vitamin D: 600 IU/day — sunlight exposure and fortified milk or eggs help meet this.',
+    ],
+    link: 'https://www.niddk.nih.gov/health-information/weight-management/healthy-eating-physical-activity-for-life',
+    linkLabel: 'NIH Healthy Eating Reference',
+  },
+  {
+    source: 'WHO',
+    color: 'purple',
+    title: 'Physical Activity Recommendations',
+    guidelines: [
+      'Adults aged 18–64 should do at least 150–300 minutes of moderate-intensity aerobic activity per week.',
+      'Muscle-strengthening activities should be done at moderate or greater intensity on 2+ days per week.',
+      'Reducing sedentary time and replacing it with physical activity of any intensity provides health benefits.',
+      'Even 10-minute walks after meals help control blood sugar — especially important for diabetics.',
+    ],
+    link: 'https://www.who.int/news-room/fact-sheets/detail/physical-activity',
+    linkLabel: 'WHO Physical Activity Fact Sheet',
+  },
+]
+
+const SOURCE_COLORS = {
+  blue:    { bg: 'bg-blue-50 dark:bg-blue-900/20',   border: 'border-blue-200 dark:border-blue-800',   badge: 'bg-blue-600 text-white',   dot: 'bg-blue-500' },
+  emerald: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', badge: 'bg-emerald-600 text-white', dot: 'bg-emerald-500' },
+  purple:  { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', badge: 'bg-purple-600 text-white', dot: 'bg-purple-500' },
+}
+
+function WHONIHSection() {
+  return (
+    <div className="mt-10">
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-xl flex items-center justify-center">
+          <Globe className="w-5 h-5 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="font-display font-bold text-slate-800 dark:text-white text-lg">
+            WHO & NIH Dietary Guidelines
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Scientifically verified nutrition standards integrated into DIETORA's meal planning engine
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {WHO_NIH_GUIDELINES.map((g, i) => {
+          const c = SOURCE_COLORS[g.color]
+          return (
+            <div key={i} className={`rounded-2xl border-2 p-5 ${c.bg} ${c.border}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${c.badge}`}>{g.source}</span>
+                <h3 className="font-display font-bold text-sm text-slate-800 dark:text-white leading-tight">{g.title}</h3>
+              </div>
+              <ul className="space-y-2 mb-4">
+                {g.guidelines.map((line, j) => (
+                  <li key={j} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${c.dot}`} />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+              <a
+                href={g.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <ExternalLink className="w-3 h-3" /> {g.linkLabel}
+              </a>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700 flex items-start gap-2">
+        <ShieldAlert className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+          DIETORA's AI meal planner references these WHO and NIH guidelines when calculating calorie targets, macronutrient ratios, and disease-specific food restrictions for every generated plan.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 export default function EducationalHubPage() {
@@ -218,6 +330,9 @@ export default function EducationalHubPage() {
           <p className="text-slate-500 dark:text-slate-400 text-base">No articles found for "{search}"</p>
         </div>
       )}
+
+      {/* WHO / NIH Guidelines — added per NutriGuide Pakistan proposal */}
+      <WHONIHSection />
     </div>
   )
 }

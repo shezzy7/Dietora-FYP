@@ -69,6 +69,17 @@ const foodItemSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // ─── Additional Safety Flags (NutriGuide Pakistan Proposal) ────
+    is_constipation_safe: {
+      // High-fiber, gut-friendly: oats, dal, sabzi, fruits with skin
+      type: Boolean,
+      default: false,
+    },
+    is_anemia_safe: {
+      // Iron-rich or Vitamin C-enhanced absorption: palak, red meat, dal, citrus
+      type: Boolean,
+      default: false,
+    },
     // ─── Category & Meal Type ────────────────────────────
     category: {
       type: String,
@@ -114,6 +125,8 @@ foodItemSchema.index({
   is_cardiac_safe: 1,
   is_kidney_safe: 1,
   is_thyroid_safe: 1,
+  is_constipation_safe: 1,
+  is_anemia_safe: 1,
 });
 foodItemSchema.index({ name: 'text', description: 'text' });
 

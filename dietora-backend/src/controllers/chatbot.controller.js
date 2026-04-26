@@ -1,24 +1,16 @@
 // src/controllers/chatbot.controller.js
-// AI Chatbot Controller with LangGraph Integration
-// Now using an Agentic workflow to intelligently select tools
+// DIETORA AI Chatbot Controller — LangGraph + Groq + Tavily
 
 const { runChatbotAgent, clearChatbotHistory } = require('../services/ai/chatbot/agent');
 const UserLocation = require('../models/UserLocation');
 const { successResponse } = require('../utils/response.utils');
 
-/**
- * POST /api/v1/chatbot
- * 
- * Improved response with:
- * - LangGraph AI Orchestration
- * - Dynamic tool usage for location, profile, and meal plans
- * - ReAct pattern for deep thinking
- */
-const sendMessage = async (req, res, next) => {
+// ─── POST /api/v1/chatbot ────────────────────────────────────────────────
+const sendMessage = async (req, res) => {
   try {
     const { message } = req.body;
 
-    // ─── Input validation ──────────────────────────────────
+    // ─── Input validation ────────────────────────────────────────────────
     if (!message?.trim()) {
       return res.status(400).json({
         success: false,
@@ -32,73 +24,89 @@ const sendMessage = async (req, res, next) => {
       });
     }
 
-    // ─── Fetch Location Context ───────────────────────────
-    const location = await UserLocation.findOne({ user: req.user._id }).lean().catch(() => null);
+    // ─── Fetch user location context (non-blocking on failure) ───────────
+    const location = await UserLocation.findOne({ user: req.user._id })
+      .lean()
+      .catch(() => null);
 
-    // ─── Agentic AI Response ──────────────────────────────
-    console.log(`[Chatbot] Running LangGraph agent for user: ${req.user._id}`);
+    // ─── Run agent ───────────────────────────────────────────────────────
+    console.log(`[Chatbot] User=${req.user._id} | msg="${message.slice(0, 80)}..."`);
+
     const aiResponse = await runChatbotAgent(
-      req.user._id, 
-      req.user.name, 
-      message.trim(), 
-      location
+      req.user._id.toString(),
+      req.user.name,
+      message.trim(),
+      location,
     );
 
-    // ─── Send response ────────────────────────────────────
+    // ─── Send response ───────────────────────────────────────────────────
     return successResponse(
       res,
       {
         userMessage: message.trim(),
         reply: aiResponse.reply,
         intent: aiResponse.intent,
+        toolsCalled: aiResponse.toolsCalled,
         stores: aiResponse.stores,
         hasStoreResults: aiResponse.hasStoreResults,
         foodSearched: aiResponse.foodSearched,
+        citedSources: aiResponse.citedSources,
         tokensEstimate: aiResponse.tokensEstimate,
+        durationMs: aiResponse.durationMs,
         model: aiResponse.model,
         timestamp: new Date().toISOString(),
       },
-      'Response ready'
+      'Response ready',
     );
-
   } catch (err) {
-    // ─── Comprehensive error handling ──────────────────────
-    console.error('[CHATBOT ERROR]', {
-      userId: req.user?._id,
+    console.error('[Chatbot ERROR]', {
+      userId: req.user?._id?.toString(),
       message: err.message,
       stack: err.stack?.split('\n').slice(0, 3).join('\n'),
     });
 
+    // ─── Map known errors to HTTP statuses ───────────────────────────────
     if (err.message?.includes('GROQ_API_KEY')) {
       return res.status(503).json({
         success: false,
-        message: 'AI service not configured. Add GROQ_API_KEY to your .env file.',
+        message: 'AI service is not configured. Add GROQ_API_KEY to your .env file.',
       });
     }
 
-    if (err.status === 429 || err.message?.includes('rate limit')) {
+    if (err.message?.includes('TAVILY_API_KEY')) {
+      return res.status(503).json({
+        success: false,
+        message: 'Web search service is not configured. Add TAVILY_API_KEY to your .env file.',
+      });
+    }
+
+    if (err.status === 429 || /rate.?limit/i.test(err.message || '')) {
       return res.status(429).json({
         success: false,
-        message: 'AI service is temporarily overloaded. Please try again in a moment.',
+        message: 'AI service is temporarily rate-limited. Please try again in a moment.',
+      });
+    }
+
+    if (err.status === 401 || /unauthor/i.test(err.message || '')) {
+      return res.status(503).json({
+        success: false,
+        message: 'AI service authentication failed. Check that your API keys are valid.',
       });
     }
 
     return res.status(500).json({
       success: false,
-      message: 'Chatbot error: ' + err.message?.substring(0, 100),
+      message: `Chatbot error: ${(err.message || 'Unknown error').slice(0, 200)}`,
     });
   }
 };
 
-/**
- * DELETE /api/v1/chatbot/history
- */
+// ─── DELETE /api/v1/chatbot/history ──────────────────────────────────────
 const clearChatHistory = async (req, res, next) => {
   try {
-    await clearChatbotHistory(req.user._id);
+    await clearChatbotHistory(req.user._id.toString());
     return successResponse(res, {}, 'Conversation history cleared ✓');
   } catch (err) {
-    // BUG FIX: delegate to centralized error handler instead of swallowing
     next(err);
   }
 };

@@ -7,6 +7,8 @@ const { successResponse } = require('../utils/response.utils');
 const ALLOWED_PROFILE_FIELDS = [
   'age', 'gender', 'weight', 'height', 'activityLevel', 'goal',
   'isDiabetic', 'isHypertensive', 'isCardiac', 'hasKidneyDisease', 'hasThyroid',
+  // Additional conditions added per NutriGuide Pakistan proposal
+  'hasConstipation', 'hasAnemia', 'hasObesity',
   'allergies', 'dailyBudget', 'primaryGoalReason', 'hasDisease',
   'diseaseDescription', 'onboardingCompleted',
 ];
@@ -113,6 +115,11 @@ const getProfileSummary = async (req, res, next) => {
         isDiabetic: profile.isDiabetic,
         isHypertensive: profile.isHypertensive,
         isCardiac: profile.isCardiac,
+        hasKidneyDisease: profile.hasKidneyDisease,
+        hasThyroid: profile.hasThyroid,
+        hasConstipation: profile.hasConstipation,
+        hasAnemia: profile.hasAnemia,
+        hasObesity: profile.hasObesity,
       },
       allergies: profile.allergies,
     };

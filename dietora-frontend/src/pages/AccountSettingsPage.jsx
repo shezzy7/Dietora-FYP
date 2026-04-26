@@ -1,126 +1,141 @@
 // src/pages/AccountSettingsPage.jsx
 import { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { useNavigate } from 'react-router-dom'
-import { deleteAccount, logout } from '../store/slices/authSlice'
-import toast from 'react-hot-toast'
+import { useNavigate, Link } from 'react-router-dom'
+import { logout, deleteAccount, resetAccount } from '../store/slices/authSlice'
+import {
+  User, Mail, Shield, Calendar, Edit3, LogOut,
+  Trash2, RotateCcw, AlertTriangle, X, Eye, EyeOff, Loader2,
+} from 'lucide-react'
 
-// ─── Confirmation Modal ───────────────────────────────────
-function DeleteAccountModal({ user, onClose, onConfirm, isDeleting }) {
-  const isGoogle = user?.authProvider === 'google'
+// ─── Confirmation Modal (shared by Reset & Delete) ────────
+function ConfirmModal({ type, user, isProcessing, onClose, onConfirm }) {
   const [password, setPassword] = useState('')
-  const [typed, setTyped]       = useState('')
-  const CONFIRM_PHRASE = 'delete my account'
+  const [showPw, setShowPw] = useState(false)
+  const [error, setError] = useState('')
+  const isGoogle = user?.authProvider === 'google'
 
-  const ready = isGoogle
-    ? typed === CONFIRM_PHRASE
-    : typed === CONFIRM_PHRASE && password.length >= 6
+  const config = {
+    delete: {
+      title: 'Delete Account',
+      subtitle: 'This action is permanent and irreversible',
+      icon: Trash2,
+      iconBg: 'bg-red-100 dark:bg-red-900/30',
+      iconColor: 'text-red-500',
+      warnBg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+      warnText: 'text-red-700 dark:text-red-300',
+      warning: 'This will permanently delete your account and ALL your data — health profile, meal plans, grocery lists, progress, and feedback. You will be logged out and cannot recover this account.',
+      btnLabel: 'Delete Permanently',
+      btnColor: 'bg-red-500 hover:bg-red-600',
+    },
+    reset: {
+      title: 'Reset Account',
+      subtitle: 'Your account stays, all data gets erased',
+      icon: RotateCcw,
+      iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+      iconColor: 'text-amber-500',
+      warnBg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
+      warnText: 'text-amber-700 dark:text-amber-300',
+      warning: 'This will erase all your activity — health profile, meal plans, grocery lists, progress history, and feedback. Your login credentials will be preserved.',
+      btnLabel: 'Reset My Account',
+      btnColor: 'bg-amber-500 hover:bg-amber-600',
+    },
+  }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (!ready) return
-    onConfirm(isGoogle ? {} : { password })
+  const cfg = config[type]
+  const IconComp = cfg.icon
+
+  const handleSubmit = async () => {
+    setError('')
+    if (!isGoogle && !password.trim()) {
+      setError('Please enter your password to confirm.')
+      return
+    }
+    try {
+      await onConfirm(isGoogle ? {} : { password })
+    } catch (err) {
+      setError(err || 'Operation failed. Please try again.')
+    }
   }
 
   return (
-    // Backdrop
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-red-100 dark:border-red-900/40 overflow-hidden">
-
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => !isProcessing && onClose()}>
+      <div
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        style={{ animation: 'acctModalIn 0.25s ease-out' }}
+      >
         {/* Header */}
-        <div className="bg-red-50 dark:bg-red-900/20 px-6 py-5 border-b border-red-100 dark:border-red-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center text-xl flex-shrink-0">
-              ⚠️
-            </div>
-            <div>
-              <h2 className="font-display font-bold text-red-700 dark:text-red-400 text-lg leading-tight">
-                Delete Account
-              </h2>
-              <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">This action is permanent and irreversible</p>
-            </div>
+        <div className="flex items-center gap-3 px-6 pt-6 pb-2">
+          <div className={`w-10 h-10 rounded-full ${cfg.iconBg} flex items-center justify-center flex-shrink-0`}>
+            <IconComp className={`w-5 h-5 ${cfg.iconColor}`} />
           </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{cfg.title}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{cfg.subtitle}</p>
+          </div>
+          <button onClick={onClose} disabled={isProcessing} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-50">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-
-          {/* What gets deleted */}
-          <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-sm text-slate-600 dark:text-slate-300 space-y-1.5">
-            <p className="font-semibold text-slate-700 dark:text-slate-200 mb-2">The following will be permanently erased:</p>
-            {[
-              '👤 Your account and personal information',
-              '🏥 Health profile & medical data',
-              '🍽️ All meal plans',
-              '🛒 Grocery lists',
-              '📊 Progress & history',
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-2">
-                <span className="text-red-400 font-bold text-xs">✗</span>
-                <span>{item}</span>
-              </div>
-            ))}
+        <div className="px-6 py-4">
+          <div className={`${cfg.warnBg} border rounded-xl p-4 mb-4`}>
+            <p className={`text-sm leading-relaxed ${cfg.warnText}`}>
+              <strong>Warning:</strong> {cfg.warning}
+            </p>
           </div>
 
-          {/* Password field — local users only */}
           {!isGoogle && (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-                Enter your password to confirm
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your current password"
-                className="w-full border-2 border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:border-red-400 transition-colors"
-                autoComplete="current-password"
-              />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Enter your password to confirm</label>
+              <div className="relative">
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError('') }}
+                  placeholder="Your current password"
+                  disabled={isProcessing}
+                  className="w-full px-4 py-2.5 pr-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-400 transition-all disabled:opacity-50"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Type-to-confirm */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
-              Type <span className="font-mono text-red-500 bg-red-50 dark:bg-red-900/30 px-1.5 py-0.5 rounded text-xs">{CONFIRM_PHRASE}</span> to confirm
-            </label>
-            <input
-              type="text"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={CONFIRM_PHRASE}
-              className="w-full border-2 border-slate-200 dark:border-slate-600 rounded-xl px-4 py-2.5 text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:border-red-400 transition-colors"
-              autoComplete="off"
-            />
-          </div>
+          {isGoogle && (
+            <p className="text-sm text-slate-600 dark:text-slate-400">Since you signed in with Google, click the button below to confirm.</p>
+          )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isDeleting}
-              className="flex-1 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!ready || isDeleting}
-              className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-red-300 dark:disabled:bg-red-900/40 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
-            >
-              {isDeleting ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                '🗑️ Delete My Account'
-              )}
-            </button>
-          </div>
-        </form>
+          {error && <p className="mt-3 text-sm text-red-500 dark:text-red-400 font-medium">{error}</p>}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 pb-6">
+          <button onClick={onClose} disabled={isProcessing} className="flex-1 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={isProcessing}
+            className={`flex-1 px-4 py-2.5 text-sm font-semibold text-white ${cfg.btnColor} rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
+          >
+            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <IconComp className="w-4 h-4" />}
+            {isProcessing ? 'Processing...' : cfg.btnLabel}
+          </button>
+        </div>
       </div>
+
+      <style>{`
+        @keyframes acctModalIn {
+          from { opacity: 0; transform: scale(0.95) translateY(10px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }
@@ -129,17 +144,21 @@ function DeleteAccountModal({ user, onClose, onConfirm, isDeleting }) {
 export default function AccountSettingsPage() {
   const dispatch  = useDispatch()
   const navigate  = useNavigate()
-  const { user, deletingAccount } = useSelector((s) => s.auth)
+  const { user, deletingAccount, resettingAccount } = useSelector((s) => s.auth)
 
-  const [showModal, setShowModal] = useState(false)
+  const [modal, setModal] = useState(null) // 'delete' | 'reset' | null
 
-  const handleDeleteConfirm = async (payload) => {
-    const result = await dispatch(deleteAccount(payload))
-    if (deleteAccount.fulfilled.match(result)) {
-      // State is already cleared by the slice; redirect to landing
-      navigate('/', { replace: true })
+  const isGoogle = user?.authProvider === 'google'
+  const isProcessing = deletingAccount || resettingAccount
+
+  const handleConfirm = async (payload) => {
+    if (modal === 'delete') {
+      await dispatch(deleteAccount(payload)).unwrap()
+      navigate('/login', { replace: true })
+    } else {
+      await dispatch(resetAccount(payload)).unwrap()
+      setModal(null)
     }
-    // On failure the slice sets toast + error — modal stays open
   }
 
   const handleLogout = () => {
@@ -147,19 +166,19 @@ export default function AccountSettingsPage() {
     navigate('/login', { replace: true })
   }
 
-  const isGoogle = user?.authProvider === 'google'
-
   return (
     <div className="max-w-2xl mx-auto animate-fade-in pb-10">
       <div className="page-header">
-        <h1 className="page-title">Account Settings</h1>
-        <p className="page-subtitle">Manage your account preferences and security</p>
+        <h1 className="page-title">Manage My Account</h1>
+        <p className="page-subtitle">View your info, edit profile, or manage your account</p>
       </div>
 
-      {/* ── Account Info ─────────────────────────────── */}
+      {/* ── Account Info ──────────────────────────────── */}
       <div className="card mb-5">
         <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
-          <span className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center text-sm">👤</span>
+          <span className="w-7 h-7 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg flex items-center justify-center">
+            <User className="w-4 h-4 text-emerald-600" />
+          </span>
           Account Information
         </h2>
         <div className="space-y-3">
@@ -169,74 +188,126 @@ export default function AccountSettingsPage() {
                 ? <img src={user.avatar} alt={user.name} className="w-14 h-14 rounded-full object-cover" />
                 : user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
-            <div>
-              <p className="font-semibold text-slate-800 dark:text-white">{user?.name}</p>
-              <p className="text-sm text-slate-400">{user?.email}</p>
-              <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full mt-1 ${
-                isGoogle
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600'
-                  : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600'
-              }`}>
-                {isGoogle ? '🔵 Google Account' : '✉️ Email Account'}
-              </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-slate-800 dark:text-white text-lg">{user?.name}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <p className="text-sm text-slate-400 truncate">{user?.email}</p>
+              </div>
             </div>
           </div>
-          <div className="text-xs text-slate-400 border-t border-slate-100 dark:border-slate-700 pt-3">
-            Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+
+          {/* Details Grid */}
+          <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-slate-400" />
+              <div>
+                <p className="text-xs text-slate-400">Auth Provider</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {isGoogle ? '🔵 Google' : '✉️ Email / Password'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <div>
+                <p className="text-xs text-slate-400">Member Since</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {user?.createdAt
+                    ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                    : '—'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Session ──────────────────────────────────── */}
+      {/* ── Edit Profile ──────────────────────────────── */}
       <div className="card mb-5">
-        <h2 className="font-display font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-base">
-          <span className="w-7 h-7 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center text-sm">🔐</span>
-          Session
+        <h2 className="font-display font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2 text-base">
+          <span className="w-7 h-7 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center">
+            <Edit3 className="w-4 h-4 text-blue-600" />
+          </span>
+          Health Profile
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          Sign out of your account on this device. Your data will remain intact.
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 ml-9">
+          Update your weight, height, medical conditions, allergies, and daily budget.
         </p>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-        >
-          🚪 Sign Out
-        </button>
+        <div className="ml-9">
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 text-sm font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+          >
+            <Edit3 className="w-4 h-4" />
+            Edit Health Profile
+          </Link>
+        </div>
       </div>
 
-      {/* ── Danger Zone ──────────────────────────────── */}
-      <div className="card border-2 border-red-100 dark:border-red-900/40">
-        <h2 className="font-display font-bold text-red-600 dark:text-red-400 mb-1 flex items-center gap-2 text-base">
-          <span className="w-7 h-7 bg-red-100 dark:bg-red-900/40 rounded-lg flex items-center justify-center text-sm">⚠️</span>
-          Danger Zone
+      {/* ── Account Actions ───────────────────────────── */}
+      <div className="card border-2 border-slate-200 dark:border-slate-700">
+        <h2 className="font-display font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2 text-base">
+          <span className="w-7 h-7 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
+            <AlertTriangle className="w-4 h-4 text-slate-500" />
+          </span>
+          Account Actions
         </h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
-          Once you delete your account, there is no going back. All your data —
-          health profile, meal plans, grocery lists, and progress — will be
-          permanently erased. This action <strong className="text-slate-700 dark:text-slate-200">cannot be undone</strong>.
-        </p>
+        <p className="text-sm text-slate-400 mb-6 ml-9">Sign out, reset data, or delete your account</p>
 
-        {isGoogle && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl text-xs text-blue-700 dark:text-blue-400">
-            <strong>Google account:</strong> Your DIETORA account will be deleted, but your Google account itself is unaffected. You can always create a new DIETORA account later.
-          </div>
-        )}
+        <div className="space-y-3 ml-9">
+          {/* Logout */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <LogOut className="w-5 h-5 text-slate-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-800 dark:text-white text-sm">Sign Out</p>
+              <p className="text-xs text-slate-400 mt-0.5">Log out of your account on this device</p>
+            </div>
+          </button>
 
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-        >
-          🗑️ Delete My Account
-        </button>
+          {/* Reset Account */}
+          <button
+            onClick={() => setModal('reset')}
+            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-amber-100 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-900/5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all group text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <RotateCcw className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-800 dark:text-white text-sm">Reset Account</p>
+              <p className="text-xs text-slate-400 mt-0.5">Clear all data but keep your account</p>
+            </div>
+          </button>
+
+          {/* Delete Account */}
+          <button
+            onClick={() => setModal('delete')}
+            className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-red-100 dark:border-red-900/40 bg-red-50/30 dark:bg-red-900/5 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all group text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+              <Trash2 className="w-5 h-5 text-red-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-800 dark:text-white text-sm">Delete Account</p>
+              <p className="text-xs text-slate-400 mt-0.5">Permanently remove your account and all data</p>
+            </div>
+          </button>
+        </div>
       </div>
 
-      {/* Confirmation Modal */}
-      {showModal && (
-        <DeleteAccountModal
+      {/* ── Confirmation Modal ─────────────────────────── */}
+      {modal && (
+        <ConfirmModal
+          type={modal}
           user={user}
-          isDeleting={deletingAccount}
-          onClose={() => setShowModal(false)}
-          onConfirm={handleDeleteConfirm}
+          isProcessing={isProcessing}
+          onClose={() => !isProcessing && setModal(null)}
+          onConfirm={handleConfirm}
         />
       )}
     </div>

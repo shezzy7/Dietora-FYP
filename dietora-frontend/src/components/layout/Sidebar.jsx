@@ -1,22 +1,28 @@
 import { NavLink } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { logout } from '../../store/slices/authSlice'
-import { LayoutDashboard, User, CalendarDays, ShoppingCart, Wallet, TrendingUp, BookOpen, MessageSquare, Settings, LogOut } from 'lucide-react'
-
-const navItems = [
-  { to: '/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/profile',    icon: User, label: 'Health Profile' },
-  { to: '/meal-plan',  icon: CalendarDays, label: 'Meal Planner' },
-  { to: '/grocery',    icon: ShoppingCart, label: 'Grocery List' },
-  { to: '/budget',     icon: Wallet, label: 'Budget Optimizer' },
-  { to: '/progress',   icon: TrendingUp, label: 'My Progress' },
-  { to: '/education',  icon: BookOpen, label: 'Educational Hub' },
-  { to: '/feedback',   icon: MessageSquare, label: 'Feedback' },
-]
+import { useUrdu } from '../../context/UrduContext'
+import {
+  LayoutDashboard, User, CalendarDays, ShoppingCart,
+  Wallet, TrendingUp, BookOpen, MessageSquare,
+  Settings, LogOut, UserCog,
+} from 'lucide-react'
 
 export default function Sidebar({ open, onClose }) {
-  const dispatch = useDispatch()
-  const { user } = useSelector((s) => s.auth)
+  const dispatch   = useDispatch()
+  const { user }   = useSelector((s) => s.auth)
+  const { t, isUrdu } = useUrdu()
+
+  const navItems = [
+    { to: '/dashboard', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
+    { to: '/profile',   icon: User,            labelKey: 'nav.profile'   },
+    { to: '/meal-plan', icon: CalendarDays,    labelKey: 'nav.mealPlan'  },
+    { to: '/grocery',   icon: ShoppingCart,    labelKey: 'nav.grocery'   },
+    { to: '/budget',    icon: Wallet,          labelKey: 'nav.budget'    },
+    { to: '/progress',  icon: TrendingUp,      labelKey: 'nav.progress'  },
+    { to: '/education', icon: BookOpen,        labelKey: 'nav.education' },
+    { to: '/feedback',  icon: MessageSquare,   labelKey: 'nav.feedback'  },
+  ]
 
   return (
     <aside className={`
@@ -59,12 +65,12 @@ export default function Sidebar({ open, onClose }) {
               key={item.to}
               to={item.to}
               onClick={onClose}
-              className={({ isActive }) =>
-                `sidebar-link group ${isActive ? 'active' : ''}`
-              }
+              className={({ isActive }) => `sidebar-link group ${isActive ? 'active' : ''}`}
             >
-              <Icon className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-              <span>{item.label}</span>
+              <Icon className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity shrink-0" />
+              <span style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif" } : {}}>
+                {t(item.labelKey)}
+              </span>
             </NavLink>
           )
         })}
@@ -75,20 +81,34 @@ export default function Sidebar({ open, onClose }) {
             onClick={onClose}
             className={({ isActive }) => `sidebar-link group ${isActive ? 'active' : ''}`}
           >
-            <Settings className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-            <span>Admin Panel</span>
+            <Settings className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity shrink-0" />
+            <span style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif" } : {}}>
+              Admin Panel
+            </span>
           </NavLink>
         )}
       </nav>
 
-      {/* Logout */}
-      <div className="px-3 py-4 border-t border-slate-100 dark:border-slate-800">
+      {/* Bottom Actions */}
+      <div className="px-3 py-4 border-t border-slate-100 dark:border-slate-800 space-y-1">
+        <NavLink
+          to="/account"
+          onClick={onClose}
+          className={({ isActive }) => `sidebar-link group ${isActive ? 'active' : ''}`}
+        >
+          <UserCog className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity shrink-0" />
+          <span style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif" } : {}}>
+            {t('nav.settings')}
+          </span>
+        </NavLink>
         <button
           onClick={() => dispatch(logout())}
           className="sidebar-link w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 group"
         >
-          <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity" />
-          <span>Logout</span>
+          <LogOut className="w-5 h-5 opacity-70 group-hover:opacity-100 transition-opacity shrink-0" />
+          <span style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif" } : {}}>
+            {isUrdu ? 'لاگ آؤٹ' : 'Logout'}
+          </span>
         </button>
       </div>
     </aside>

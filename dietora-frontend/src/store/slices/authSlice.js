@@ -71,6 +71,30 @@ export const deleteAccount = createAsyncThunk('auth/deleteAccount', async (paylo
   }
 })
 
+/**
+ * resetAccount
+ * Calls POST /api/v1/auth/reset-account
+ * Deletes all user activity but keeps the account.
+ * Local users must supply { password }; Google users pass {}
+ */
+export const resetAccount = createAsyncThunk('auth/resetAccount', async (payload, { rejectWithValue, dispatch }) => {
+  try {
+    const { data } = await api.post('/auth/reset-account', payload)
+    // Reset every slice so UI reflects the clean state
+    dispatch({ type: 'profile/resetState' })
+    dispatch({ type: 'mealPlan/resetState' })
+    dispatch({ type: 'grocery/resetState' })
+    dispatch({ type: 'progress/resetState' })
+    dispatch({ type: 'weeklyProgress/resetState' })
+    dispatch({ type: 'location/resetState' })
+    dispatch({ type: 'onboarding/resetState' })
+    dispatch({ type: 'chatbot/resetState' })
+    return data
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.message || 'Account reset failed. Please try again.')
+  }
+})
+
 // ─── Slice ────────────────────────────────────────────────
 
 const authSlice = createSlice({
@@ -81,6 +105,7 @@ const authSlice = createSlice({
     loading: false,
     initialized: false,
     deletingAccount: false,
+    resettingAccount: false,
     error: null,
   },
   reducers: {
@@ -176,6 +201,22 @@ const authSlice = createSlice({
       })
       .addCase(deleteAccount.rejected, (state, action) => {
         state.deletingAccount = false
+        state.error = action.payload
+        toast.error(action.payload)
+      })
+
+    // ── Reset Account ─────────────────────────────────────
+    builder
+      .addCase(resetAccount.pending, (state) => {
+        state.resettingAccount = true
+        state.error = null
+      })
+      .addCase(resetAccount.fulfilled, (state) => {
+        state.resettingAccount = false
+        toast.success('Your account has been reset. All activity data has been cleared.')
+      })
+      .addCase(resetAccount.rejected, (state, action) => {
+        state.resettingAccount = false
         state.error = action.payload
         toast.error(action.payload)
       })

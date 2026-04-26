@@ -4,12 +4,14 @@ import { toggleTheme } from '../../store/slices/themeSlice'
 import { logout } from '../../store/slices/authSlice'
 import { useState } from 'react'
 import { Sun, Moon, Menu, X } from 'lucide-react'
+import { useUrdu } from '../../context/UrduContext'
 
 export default function Navbar() {
   const dispatch = useDispatch()
   const { dark } = useSelector((s) => s.theme)
   const { user } = useSelector((s) => s.auth)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { isUrdu, toggleUrdu } = useUrdu()
 
   return (
     <nav className="sticky top-0 z-50 glass border-b border-slate-100 dark:border-slate-800">
@@ -25,13 +27,30 @@ export default function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">
-            <NavLink to="/" end className={({isActive}) => isActive ? 'text-emerald-600 font-semibold text-sm' : 'nav-link'}>Home</NavLink>
-            <NavLink to="/about" className={({isActive}) => isActive ? 'text-emerald-600 font-semibold text-sm' : 'nav-link'}>About</NavLink>
-            <NavLink to="/faq" className={({isActive}) => isActive ? 'text-emerald-600 font-semibold text-sm' : 'nav-link'}>FAQ</NavLink>
+            <NavLink to="/" end className={({isActive}) => isActive ? 'text-emerald-600 font-semibold text-sm' : 'nav-link'}>
+              {isUrdu ? 'ہوم' : 'Home'}
+            </NavLink>
+            <NavLink to="/about" className={({isActive}) => isActive ? 'text-emerald-600 font-semibold text-sm' : 'nav-link'}>
+              {isUrdu ? 'ہمارے بارے میں' : 'About'}
+            </NavLink>
+            <NavLink to="/faq" className={({isActive}) => isActive ? 'text-emerald-600 font-semibold text-sm' : 'nav-link'}>
+              {isUrdu ? 'سوالات' : 'FAQ'}
+            </NavLink>
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-3">
+
+            {/* Language Toggle */}
+            <button
+              onClick={toggleUrdu}
+              title={isUrdu ? 'Switch to English' : 'اردو میں تبدیل کریں'}
+              className="px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors text-xs font-bold border border-emerald-200 dark:border-emerald-800 select-none"
+              aria-label="Toggle language"
+            >
+              {isUrdu ? 'EN' : 'اردو'}
+            </button>
+
             <button
               onClick={() => dispatch(toggleTheme())}
               className="p-2.5 rounded-xl text-slate-500 bg-slate-100/50 dark:bg-slate-800/50 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 border border-slate-200/50 dark:border-slate-700/50 transition-all hover:scale-105 active:scale-95"
@@ -42,13 +61,21 @@ export default function Navbar() {
 
             {user ? (
               <div className="flex items-center gap-2">
-                <Link to="/dashboard" className="btn-primary py-2 px-4 text-sm">Dashboard</Link>
-                <button onClick={() => dispatch(logout())} className="btn-secondary py-2 px-4 text-sm">Logout</button>
+                <Link to="/dashboard" className="btn-primary py-2 px-4 text-sm">
+                  {isUrdu ? 'ڈیش بورڈ' : 'Dashboard'}
+                </Link>
+                <button onClick={() => dispatch(logout())} className="btn-secondary py-2 px-4 text-sm">
+                  {isUrdu ? 'لاگ آؤٹ' : 'Logout'}
+                </button>
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-2">
-                <Link to="/login" className="btn-secondary py-2 px-4 text-sm">Login</Link>
-                <Link to="/register" className="btn-primary py-2 px-4 text-sm">Get Started</Link>
+                <Link to="/login" className="btn-secondary py-2 px-4 text-sm">
+                  {isUrdu ? 'لاگ ان' : 'Login'}
+                </Link>
+                <Link to="/register" className="btn-primary py-2 px-4 text-sm">
+                  {isUrdu ? 'شروع کریں' : 'Get Started'}
+                </Link>
               </div>
             )}
 
@@ -66,13 +93,23 @@ export default function Navbar() {
         {mobileOpen && (
           <div className="md:hidden pb-4 space-y-2 animate-slide-up relative z-50">
             <div className="p-2 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 backdrop-blur-md">
-              <NavLink to="/" end className="block py-3 px-4 rounded-xl nav-link mb-1 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>Home</NavLink>
-              <NavLink to="/about" className="block py-3 px-4 rounded-xl nav-link mb-1 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>About</NavLink>
-              <NavLink to="/faq" className="block py-3 px-4 rounded-xl nav-link mb-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>FAQ</NavLink>
+              <NavLink to="/" end className="block py-3 px-4 rounded-xl nav-link mb-1 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>
+                {isUrdu ? 'ہوم' : 'Home'}
+              </NavLink>
+              <NavLink to="/about" className="block py-3 px-4 rounded-xl nav-link mb-1 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>
+                {isUrdu ? 'ہمارے بارے میں' : 'About'}
+              </NavLink>
+              <NavLink to="/faq" className="block py-3 px-4 rounded-xl nav-link mb-2 hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => setMobileOpen(false)}>
+                {isUrdu ? 'سوالات' : 'FAQ'}
+              </NavLink>
               {!user && (
                 <div className="flex gap-2 pt-2 border-t border-slate-200/50 dark:border-slate-700/50 px-2 mt-2">
-                  <Link to="/login" className="btn-secondary py-2.5 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>Login</Link>
-                  <Link to="/register" className="btn-primary py-2.5 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>Get Started</Link>
+                  <Link to="/login" className="btn-secondary py-2.5 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>
+                    {isUrdu ? 'لاگ ان' : 'Login'}
+                  </Link>
+                  <Link to="/register" className="btn-primary py-2.5 px-4 text-sm flex-1 text-center" onClick={() => setMobileOpen(false)}>
+                    {isUrdu ? 'شروع کریں' : 'Get Started'}
+                  </Link>
                 </div>
               )}
             </div>

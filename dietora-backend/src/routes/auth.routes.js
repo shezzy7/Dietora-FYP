@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const {
-  register, login, googleAuth, getMe, changePassword, deleteAccount,
+  register, login, googleAuth, getMe, changePassword, deleteAccount, resetAccount,
 } = require('../controllers/auth.controller');
 const { protect } = require('../middleware/auth.middleware');
 const { validate } = require('../middleware/validate.middleware');
@@ -18,5 +18,7 @@ router.post('/google', googleAuth);
 router.get('/me', protect, getMe);
 router.put('/change-password', protect, changePassword);
 router.delete('/delete-account', protect, deleteAccount);
+router.post('/reset-account', protect, resetAccount);
 
 module.exports = router;
+

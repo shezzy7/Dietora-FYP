@@ -1,28 +1,31 @@
 // src/services/ai/mealPlanner/state.js
 const { Annotation } = require("@langchain/langgraph");
 
-// Define the state schema for our Meal Planner Agent
 const MealPlannerState = Annotation.Root({
-  // Inputs
-  profile: Annotation(),
+  // ── Inputs ────────────────────────────────────────────
+  profile:         Annotation(),
   checkInFeedback: Annotation(),
-  availableFoods: Annotation(),
-  startDate: Annotation(),
-  
-  // Intermediates
+  availableFoods:  Annotation(),
+  startDate:       Annotation(),
+
+  // ── Intermediates ─────────────────────────────────────
   clinicalAnalysis: Annotation(),
-  draftPlanRaw: Annotation(),
-  draftPlanParsed: Annotation(),
+  draftPlanRaw:     Annotation(),
+  draftPlanParsed:  Annotation(),
+
+  // ID→food map built in GenerateMealPlan, read in ValidatePlan
+  idToFood: Annotation(),
+
   validationErrors: Annotation({
-    reducer: (curr, update) => update // always overwrite with latest validation errors
+    reducer: (curr, update) => update, // always overwrite with latest
   }),
   generationAttempts: Annotation({
-    reducer: (curr, update) => curr + update,
-    default: () => 0
+    reducer: (curr, update) => (curr ?? 0) + update,
+    default: () => 0,
   }),
-  
-  // Output
-  finalPlan: Annotation()
+
+  // ── Output ────────────────────────────────────────────
+  finalPlan: Annotation(),
 });
 
 module.exports = { MealPlannerState };

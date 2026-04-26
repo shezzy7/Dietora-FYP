@@ -73,6 +73,14 @@ const healthProfileSchema = new mongoose.Schema(
     hasKidneyDisease: { type: Boolean, default: false },
     hasThyroid: { type: Boolean, default: false },
 
+    // ─── Additional Disease Flags (NutriGuide Pakistan Proposal) ───
+    // Constipation: high-fiber, gut-friendly foods prioritised
+    hasConstipation: { type: Boolean, default: false },
+    // Anemia: iron-rich foods (red meat, spinach, dal) + Vitamin C for absorption
+    hasAnemia: { type: Boolean, default: false },
+    // Obesity: low-calorie, high-satiety, high-fiber foods prioritised
+    hasObesity: { type: Boolean, default: false },
+
     // ─── Allergies ──────────────────────────────────────
     allergies: {
       type: [String],

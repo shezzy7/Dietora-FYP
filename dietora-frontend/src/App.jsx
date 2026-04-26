@@ -39,6 +39,9 @@ import ChatbotWidget from './components/ChatbotWidget'
 import LocationPermissionModal from './components/location/LocationPermissionModal'
 import OnboardingWizard from './components/onboarding/OnboardingWizard'
 
+// Bilingual support — language toggle is now in Navbar & TopBar directly
+import { UrduProvider } from './context/UrduContext'
+
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-white dark:bg-slate-900">
@@ -101,47 +104,49 @@ export default function App() {
   }, [token, dispatch])
 
   return (
-    <ErrorBoundary>
-      <Routes>
-        {/* Guest Routes */}
-        <Route element={<GuestLayout />}>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/about" element={<AboutPage />} />
-          <Route path="/faq" element={<FaqPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        </Route>
+    <UrduProvider>
+      <ErrorBoundary>
+        <Routes>
+          {/* Guest Routes */}
+          <Route element={<GuestLayout />}>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/faq" element={<FaqPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+          </Route>
 
-        {/* Protected Routes */}
-        <Route element={
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        }>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/profile" element={<HealthProfilePage />} />
-          <Route path="/meal-plan" element={<MealPlanPage />} />
-          <Route path="/grocery" element={<GroceryListPage />} />
-          <Route path="/budget" element={<BudgetPage />} />
-          <Route path="/education" element={<EducationalHubPage />} />
-          <Route path="/progress" element={<ProgressPage />} />
-          <Route path="/feedback" element={<FeedbackPage />} />
-          <Route path="/stores" element={<StoreFinderPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/account" element={<AccountSettingsPage />} />
-        </Route>
+          {/* Protected Routes */}
+          <Route element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/profile" element={<HealthProfilePage />} />
+            <Route path="/meal-plan" element={<MealPlanPage />} />
+            <Route path="/grocery" element={<GroceryListPage />} />
+            <Route path="/budget" element={<BudgetPage />} />
+            <Route path="/education" element={<EducationalHubPage />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
+            <Route path="/stores" element={<StoreFinderPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/account" element={<AccountSettingsPage />} />
+          </Route>
 
-        {/* 404 */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          {/* 404 */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
 
-      {/* Global Floating Components — only when logged in */}
-      {token && (
-        <>
-          <ChatbotWidget />
-          <LocationPermissionModal />
-        </>
-      )}
-    </ErrorBoundary>
+        {/* Global Floating Components — only when logged in */}
+        {token && (
+          <>
+            <ChatbotWidget />
+            <LocationPermissionModal />
+          </>
+        )}
+      </ErrorBoundary>
+    </UrduProvider>
   )
 }

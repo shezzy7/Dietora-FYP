@@ -17,6 +17,12 @@ const profileSchema = z.object({
   isDiabetic: z.boolean().default(false),
   isHypertensive: z.boolean().default(false),
   isCardiac: z.boolean().default(false),
+  hasKidneyDisease: z.boolean().default(false),
+  hasThyroid: z.boolean().default(false),
+  // Additional conditions from NutriGuide Pakistan proposal
+  hasConstipation: z.boolean().default(false),
+  hasAnemia: z.boolean().default(false),
+  hasObesity: z.boolean().default(false),
   allergies: z.array(z.string()).default([]),
   dailyBudget: z.number().min(100, 'Daily budget must be at least PKR 100'),
 });

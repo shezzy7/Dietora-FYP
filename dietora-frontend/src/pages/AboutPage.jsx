@@ -72,8 +72,8 @@ export default function AboutPage() {
         <h2 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-5">Project Details</h2>
         <div className="grid md:grid-cols-2 gap-4 text-sm">
           {[
-            { label: 'Institution', value: 'University of Agriculture Faisalabad (UAF)' },
-            { label: 'Department', value: 'Computer Science & Information Technology' },
+            { label: 'Institution', value: 'Government College University Faisalabad (GCUF)' },
+            { label: 'Department', value: 'Computer Science' },
             { label: 'Project Type', value: 'Final Year Project (FYP)' },
             { label: 'Year', value: '2024-2025' },
             { label: 'Scope', value: 'Faisalabad, Punjab, Pakistan' },

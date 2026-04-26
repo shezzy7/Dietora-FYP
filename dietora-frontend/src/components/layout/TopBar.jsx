@@ -3,17 +3,19 @@ import { toggleTheme } from '../../store/slices/themeSlice'
 import { toggleChatbot } from '../../store/slices/chatbotSlice'
 import { useLocation } from 'react-router-dom'
 import { Menu, Bot, Sun, Moon } from 'lucide-react'
+import { useUrdu } from '../../context/UrduContext'
 
-const pageNames = {
-  '/dashboard': 'Dashboard',
-  '/profile': 'Health Profile',
-  '/meal-plan': 'Meal Planner',
-  '/grocery': 'Grocery List',
-  '/budget': 'Budget Optimizer',
-  '/progress': 'My Progress',
-  '/education': 'Educational Hub',
-  '/feedback': 'Feedback',
-  '/admin': 'Admin Panel',
+const PAGE_NAME_KEYS = {
+  '/dashboard': 'nav.dashboard',
+  '/profile':   'nav.profile',
+  '/meal-plan': 'nav.mealPlan',
+  '/grocery':   'nav.grocery',
+  '/budget':    'nav.budget',
+  '/progress':  'nav.progress',
+  '/education': 'nav.education',
+  '/feedback':  'nav.feedback',
+  '/admin':     'nav.settings',
+  '/account':   'nav.settings',
 }
 
 export default function TopBar({ onMenuClick }) {
@@ -21,8 +23,10 @@ export default function TopBar({ onMenuClick }) {
   const { dark } = useSelector((s) => s.theme)
   const { user } = useSelector((s) => s.auth)
   const location = useLocation()
+  const { t, isUrdu, toggleUrdu } = useUrdu()
 
-  const title = pageNames[location.pathname] || 'DIETORA'
+  const titleKey = PAGE_NAME_KEYS[location.pathname]
+  const title = titleKey ? t(titleKey) : 'DIETORA'
 
   return (
     <header className="sticky top-0 z-20 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 flex items-center px-4 md:px-6 gap-4">
@@ -36,11 +40,27 @@ export default function TopBar({ onMenuClick }) {
 
       {/* Page Title */}
       <div className="flex-1">
-        <h1 className="font-display font-bold text-slate-800 dark:text-white text-lg">{title}</h1>
+        <h1
+          className="font-display font-bold text-slate-800 dark:text-white text-lg"
+          style={isUrdu ? { fontFamily: "'Noto Nastaliq Urdu', serif" } : {}}
+        >
+          {title}
+        </h1>
       </div>
 
       {/* Right Actions */}
       <div className="flex items-center gap-2">
+
+        {/* Language Toggle */}
+        <button
+          onClick={toggleUrdu}
+          title={isUrdu ? 'Switch to English' : 'اردو میں تبدیل کریں'}
+          className="px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors text-xs font-bold border border-emerald-200 dark:border-emerald-800 select-none"
+          aria-label="Toggle language"
+        >
+          {isUrdu ? 'EN' : 'اردو'}
+        </button>
+
         {/* Chatbot */}
         <button
           onClick={() => dispatch(toggleChatbot())}

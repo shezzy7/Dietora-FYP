@@ -6,23 +6,22 @@
 const MealPlan        = require('../models/MealPlan');
 const HealthProfile   = require('../models/HealthProfile');
 const WeeklyProgress  = require('../models/WeeklyProgress');
-const FoodItem        = require('../models/FoodItem');  // BUG FIX: was required inside fn bodies
+const FoodItem        = require('../models/FoodItem');
 const { generateMealPlan }     = require('../services/mealPlanner.service');
 const { updateMealPlanPrices } = require('../services/priceUpdater.service');
 const { generateTailoredRecipe } = require('../services/ai/recipeGenerator');
 const { successResponse, paginatedResponse } = require('../utils/response.utils');
 
-// BUG FIX: extract the repeated populate path string into one constant
 const POPULATE_MEALS = 'days.breakfast.foodItem days.lunch.foodItem days.dinner.foodItem days.snack.foodItem';
+const DAY_NAMES      = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const MEAL_TYPES     = ['breakfast','lunch','dinner','snack'];
 
-const DAY_NAMES  = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
-
-// ─── Helper: auto-init weekly progress tracker ────────────
+// ─── Helper: auto-init weekly progress tracker ─────────────
 const initProgressForPlan = async (userId, mealPlanId) => {
   try {
     const existing = await WeeklyProgress.findOne({ user: userId, mealPlan: mealPlanId });
     if (existing) return existing;
+
     const count = await WeeklyProgress.countDocuments({ user: userId });
     return await WeeklyProgress.create({
       user:       userId,
@@ -46,6 +45,9 @@ const initProgressForPlan = async (userId, mealPlanId) => {
 /**
  * POST /api/v1/meal-plans/generate
  * AI-generate a personalised 7-day meal plan + attach real-time PKR prices.
+ *
+ * Returns HTTP 503 (not 500) when Gemini is unavailable so the frontend
+ * can show a user-friendly "AI is busy, please try again in a moment" message.
  */
 const generate = async (req, res, next) => {
   try {
@@ -53,7 +55,7 @@ const generate = async (req, res, next) => {
     if (!profile) {
       return res.status(400).json({
         success: false,
-        message: 'Please create your health profile first before generating a meal plan.',
+        message: 'Please complete your health profile first before generating a meal plan.',
       });
     }
 
@@ -64,7 +66,30 @@ const generate = async (req, res, next) => {
     startDate.setHours(0, 0, 0, 0);
 
     // ── Phase 1 + 2: AI clinical analysis + meal selection ──
-    const planData = await generateMealPlan(profile, startDate);
+    let planData;
+    try {
+      planData = await generateMealPlan(profile, startDate);
+    } catch (aiErr) {
+      // AI hard-failed (all retries exhausted, Gemini unavailable, or validation never passed).
+      // We do NOT fall back to a rule-based engine — return a clear error instead.
+      console.error('[MealPlan] generateMealPlan threw:', aiErr.message);
+
+      const isTransient =
+        aiErr.message?.includes('overloaded') ||
+        aiErr.message?.includes('UNAVAILABLE') ||
+        aiErr.message?.includes('RESOURCE_EXHAUSTED') ||
+        aiErr.status === 429 ||
+        aiErr.status === 503;
+
+      return res.status(isTransient ? 503 : 500).json({
+        success: false,
+        message: isTransient
+          ? 'The AI service is temporarily busy. Please wait a moment and try again.'
+          : 'Meal plan generation failed. The AI could not produce a medically valid plan within 3 attempts. ' +
+            'Please try again or contact support if this persists.',
+        detail: process.env.NODE_ENV === 'development' ? aiErr.message : undefined,
+      });
+    }
 
     const startLabel = startDate.toLocaleDateString('en-PK', {
       weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
@@ -78,10 +103,10 @@ const generate = async (req, res, next) => {
       ...planData,
     });
 
-    // ── Populate food item details ───────────────────────────
+    // Populate food item details
     let populated = await MealPlan.findById(mealPlan._id).populate(POPULATE_MEALS);
 
-    // ── Fetch real-time prices (grounded → AI → static) ─────
+    // Real-time price update (best-effort — failure does not abort the response)
     let priceDataSource    = 'static';
     let priceSourceSummary = { grounded: 0, ai: 0, static: 0 };
 
@@ -90,9 +115,8 @@ const generate = async (req, res, next) => {
       const updatedPlan = await updateMealPlanPrices(populated);
 
       priceDataSource    = updatedPlan.priceDataSource    || 'static';
-      priceSourceSummary = updatedPlan.priceSourceSummary || { grounded: 0, ai: 0, static: 0 };
+      priceSourceSummary = updatedPlan.priceSourceSummary || { static: 0 };
 
-      // Persist updated prices + metadata back to DB
       await MealPlan.findByIdAndUpdate(mealPlan._id, {
         days:               updatedPlan.days,
         weeklyTotalCost:    updatedPlan.weeklyTotalCost,
@@ -102,15 +126,12 @@ const generate = async (req, res, next) => {
         priceLastUpdated:   new Date(),
       });
 
-      // Re-populate with updated slots
       populated = await MealPlan.findById(mealPlan._id).populate(POPULATE_MEALS);
-
       console.log(`[MealPlan] Prices updated. Source: ${priceDataSource}`, priceSourceSummary);
     } catch (priceErr) {
-      console.warn('[MealPlan] Price update failed (serving DB prices as fallback):', priceErr.message);
+      console.warn('[MealPlan] Price update failed (serving DB prices):', priceErr.message);
     }
 
-    // ── Auto-init weekly progress tracker ────────────────────
     const progress = await initProgressForPlan(req.user._id, mealPlan._id);
 
     const sourceLabels = {
@@ -122,7 +143,7 @@ const generate = async (req, res, next) => {
     return successResponse(
       res,
       { mealPlan: populated, progressId: progress?._id },
-      `7-day meal plan generated! Prices from ${sourceLabels[priceDataSource]} 🎉`,
+      `7-day meal plan generated! Prices from ${sourceLabels[priceDataSource] || sourceLabels.static} 🎉`,
       201
     );
   } catch (error) {
@@ -132,13 +153,12 @@ const generate = async (req, res, next) => {
 
 /**
  * GET /api/v1/meal-plans
- * All plans for current user (paginated, no day detail).
  */
 const getAll = async (req, res, next) => {
   try {
-    const page  = parseInt(req.query.page)  || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip  = (page - 1) * limit;
+    const page   = parseInt(req.query.page)  || 1;
+    const limit  = parseInt(req.query.limit) || 10;
+    const skip   = (page - 1) * limit;
     const filter = { user: req.user._id };
     if (req.query.status) filter.status = req.query.status;
 
@@ -155,7 +175,6 @@ const getAll = async (req, res, next) => {
 
 /**
  * GET /api/v1/meal-plans/active
- * Current active plan + progress tracker.
  */
 const getActive = async (req, res, next) => {
   try {
@@ -210,7 +229,6 @@ const getDayPlan = async (req, res, next) => {
 
 /**
  * DELETE /api/v1/meal-plans/:id
- * Soft-delete (archive) a plan.
  */
 const archivePlan = async (req, res, next) => {
   try {
@@ -228,48 +246,38 @@ const archivePlan = async (req, res, next) => {
 
 /**
  * GET /api/v1/meal-plans/:id/alternatives
- * Get 3 safe alternatives for a specific meal slot.
  */
 const getAlternatives = async (req, res, next) => {
   try {
-    const { day, meal } = req.query; // day=1, meal=breakfast
-    const plan = await MealPlan.findOne({ _id: req.params.id, user: req.user._id });
-    if (!plan) return res.status(404).json({ success: false, message: 'Meal plan not found.' });
-
-    // Find foods matching mealType — BUG FIX: FoodItem now imported at top
-    const filter = { isAvailable: true, mealType: meal };
+    const { day, meal } = req.query;
     if (!meal) {
       return res.status(400).json({ success: false, message: 'Query param "meal" (mealType) is required.' });
     }
-    
-    // Apply medical rules
-    if (plan.planConfig.isDiabetic) filter.is_diabetic_safe = true;
-    if (plan.planConfig.isHypertensive) filter.is_hypertension_safe = true;
-    if (plan.planConfig.isCardiac) filter.is_cardiac_safe = true;
-    if (plan.planConfig.hasKidneyDisease) filter.is_kidney_safe = true;
-    if (plan.planConfig.hasThyroid) filter.is_thyroid_safe = true;
-    
-    const FoodItem = require('../models/FoodItem');
-    let foods = await FoodItem.find(filter).lean();
-    
-    // Filter allergies
-    const allergyLower = (plan.planConfig.allergies || []).map(a => a.toLowerCase());
-    foods = foods.filter(f => !f.allergens?.some(a => allergyLower.includes(a.toLowerCase())));
 
-    // Filter by budget for this meal slot
+    const plan = await MealPlan.findOne({ _id: req.params.id, user: req.user._id });
+    if (!plan) return res.status(404).json({ success: false, message: 'Meal plan not found.' });
+
+    const filter = { isAvailable: true, mealType: meal };
+    if (plan.planConfig.isDiabetic)       filter.is_diabetic_safe     = true;
+    if (plan.planConfig.isHypertensive)   filter.is_hypertension_safe = true;
+    if (plan.planConfig.isCardiac)        filter.is_cardiac_safe       = true;
+    if (plan.planConfig.hasKidneyDisease) filter.is_kidney_safe        = true;
+    if (plan.planConfig.hasThyroid)       filter.is_thyroid_safe       = true;
+
+    let foods = await FoodItem.find(filter).lean();
+
+    const allergyLower = (plan.planConfig.allergies || []).map((a) => a.toLowerCase());
+    foods = foods.filter((f) => !f.allergens?.some((a) => allergyLower.includes(a.toLowerCase())));
+
     const budgetMap = { breakfast: 0.25, lunch: 0.35, dinner: 0.30, snack: 0.10 };
     const maxBudget = plan.planConfig.dailyBudget * (budgetMap[meal] || 0.25);
-    
-    let affordable = foods.filter(f => f.price <= maxBudget);
-    if (affordable.length === 0) affordable = foods; // fallback
-    
-    // Sort by calorie value (greedy)
+
+    let affordable = foods.filter((f) => f.price <= maxBudget);
+    if (!affordable.length) affordable = foods;
+
     affordable.sort((a, b) => (b.calories / (b.price || 1)) - (a.calories / (a.price || 1)));
-    
-    // Return top 3 alternatives
-    const alternatives = affordable.slice(0, 3);
-    
-    return successResponse(res, alternatives, 'Alternatives fetched');
+
+    return successResponse(res, affordable.slice(0, 3), 'Alternatives fetched');
   } catch (error) {
     next(error);
   }
@@ -277,7 +285,6 @@ const getAlternatives = async (req, res, next) => {
 
 /**
  * PATCH /api/v1/meal-plans/:id/swap
- * Swap a meal slot with a new food item.
  */
 const swapMeal = async (req, res, next) => {
   try {
@@ -285,63 +292,57 @@ const swapMeal = async (req, res, next) => {
     const plan = await MealPlan.findOne({ _id: req.params.id, user: req.user._id });
     if (!plan) return res.status(404).json({ success: false, message: 'Meal plan not found.' });
 
-    // BUG FIX: FoodItem now imported at top — no dynamic require()
     const food = await FoodItem.findById(foodItemId).lean();
     if (!food) return res.status(404).json({ success: false, message: 'Food item not found.' });
 
-    const dayIndex = plan.days.findIndex(d => d.day === parseInt(day));
+    const dayIndex = plan.days.findIndex((d) => d.day === parseInt(day));
     if (dayIndex === -1) return res.status(404).json({ success: false, message: 'Day not found.' });
 
-    // Replace the meal slot
     plan.days[dayIndex][meal] = [{
-      foodItem: food._id,
-      quantity: 1,
-      calories: food.calories,
-      protein: food.protein,
-      carbs: food.carbs,
-      fat: food.fat,
-      price: food.price,
-      priceSource: 'static'
+      foodItem:    food._id,
+      quantity:    1,
+      calories:    food.calories,
+      protein:     food.protein,
+      carbs:       food.carbs,
+      fat:         food.fat,
+      price:       food.price,
+      priceSource: 'static',
     }];
 
-    // Recalculate day totals
-    const dayData = plan.days[dayIndex];
+    const dayData  = plan.days[dayIndex];
     const allSlots = [...dayData.breakfast, ...dayData.lunch, ...dayData.dinner, ...dayData.snack];
     dayData.totalCalories = Math.round(allSlots.reduce((s, m) => s + m.calories, 0));
-    dayData.totalProtein = parseFloat(allSlots.reduce((s, m) => s + m.protein, 0).toFixed(1));
-    dayData.totalCarbs = parseFloat(allSlots.reduce((s, m) => s + m.carbs, 0).toFixed(1));
-    dayData.totalFat = parseFloat(allSlots.reduce((s, m) => s + m.fat, 0).toFixed(1));
-    dayData.totalCost = parseFloat(allSlots.reduce((s, m) => s + m.price, 0).toFixed(2));
+    dayData.totalProtein  = parseFloat(allSlots.reduce((s, m) => s + m.protein,  0).toFixed(1));
+    dayData.totalCarbs    = parseFloat(allSlots.reduce((s, m) => s + m.carbs,    0).toFixed(1));
+    dayData.totalFat      = parseFloat(allSlots.reduce((s, m) => s + m.fat,      0).toFixed(1));
+    dayData.totalCost     = parseFloat(allSlots.reduce((s, m) => s + m.price,    0).toFixed(2));
 
-    // Recalculate weekly totals
     plan.weeklyTotalCalories = Math.round(plan.days.reduce((s, d) => s + d.totalCalories, 0));
-    plan.weeklyTotalCost = parseFloat(plan.days.reduce((s, d) => s + d.totalCost, 0).toFixed(2));
-    plan.avgDailyCalories = Math.round(plan.weeklyTotalCalories / 7);
-    plan.avgDailyCost = parseFloat((plan.weeklyTotalCost / 7).toFixed(2));
+    plan.weeklyTotalCost     = parseFloat(plan.days.reduce((s, d) => s + d.totalCost,     0).toFixed(2));
+    plan.avgDailyCalories    = Math.round(plan.weeklyTotalCalories / 7);
+    plan.avgDailyCost        = parseFloat((plan.weeklyTotalCost / 7).toFixed(2));
 
     await plan.save();
-    
-    // Populate before returning
-    const populated = await MealPlan.findById(plan._id).populate(POPULATE_MEALS);
 
+    const populated = await MealPlan.findById(plan._id).populate(POPULATE_MEALS);
     return successResponse(res, populated, 'Meal swapped successfully');
   } catch (error) {
     next(error);
   }
 };
 
+/**
+ * GET /api/v1/meal-plans/:id/recipe/:foodId
+ */
 const getRecipe = async (req, res, next) => {
   try {
-    // BUG FIX: FoodItem and HealthProfile now imported at top
     const food = await FoodItem.findById(req.params.foodId).lean();
     if (!food) return res.status(404).json({ success: false, message: 'Food item not found.' });
 
     const profile = await HealthProfile.findOne({ user: req.user._id }).lean();
     if (!profile) return res.status(400).json({ success: false, message: 'Health profile not found.' });
 
-    // BUG FIX: generateTailoredRecipe now imported at top
     const recipe = await generateTailoredRecipe(food.name, profile);
-    
     return successResponse(res, recipe, 'Recipe generated successfully');
   } catch (error) {
     next(error);
