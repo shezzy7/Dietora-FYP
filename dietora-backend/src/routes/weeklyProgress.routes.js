@@ -33,4 +33,7 @@ router.post('/:progressId/checkin', submitCheckIn);
 // Regenerate next week's plan after check-in
 router.post('/:progressId/regenerate', regenerateAfterCheckIn);
 
+// Dashboard statistics
+router.get('/dashboard-stats', getDashboardStats);
+
 module.exports = router;

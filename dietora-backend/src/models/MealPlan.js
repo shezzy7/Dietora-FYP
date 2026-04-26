@@ -1,6 +1,6 @@
 // src/models/MealPlan.js
 // 7-day AI-generated meal plan
-// v4: priceSource per slot + price metadata + clinical analysis
+// v5: planDataSource (ai_generated | greedy_fallback) + priceSource per slot + clinical analysis
 
 const mongoose = require('mongoose');
 
@@ -16,11 +16,11 @@ const mealSlotSchema = new mongoose.Schema(
     price:    Number, // PKR — set by price engine
     priceSource: {
       type: String,
-      enum: ['grounded', 'ai', 'static'],
+      enum: ['grounded', 'live', 'ai', 'static'],
       default: 'static',
-      // grounded = Gemini fetched via live Google Search (most accurate)
-      // ai       = Gemini AI knowledge without live search (good fallback)
-      // static   = researched static baseline (always available)
+      // grounded/live = fetched via live web search (most accurate)
+      // ai            = AI knowledge without live search (good fallback)
+      // static        = researched static baseline (always available)
     },
   },
   { _id: false }
@@ -97,18 +97,33 @@ const mealPlanSchema = new mongoose.Schema(
     weeklyTotalCost:     { type: Number, default: 0 }, // PKR
     avgDailyCalories:    { type: Number, default: 0 },
     avgDailyCost:        { type: Number, default: 0 }, // PKR
-    // Price metadata — set by priceUpdater after generation
+
+    // ── MEAL PLAN source (HOW the meals were selected) ────
+    // ai_generated   = Groq LLM clinical AI selected meals (normal path)
+    // greedy_fallback = LLM failed 3 attempts; deterministic round-robin used
+    planDataSource: {
+      type: String,
+      enum: ['ai_generated', 'greedy_fallback'],
+      default: 'ai_generated',
+    },
+
+    // ── PRICE source (HOW prices were fetched) ─────────────
+    // live/grounded = Tavily/Google live web search
+    // ai            = AI knowledge
+    // static        = pre-researched April 2026 Faisalabad baseline
     priceDataSource: {
       type: String,
-      enum: ['grounded', 'ai', 'static'],
+      enum: ['grounded', 'live', 'ai', 'static'],
       default: 'static',
     },
     priceSourceSummary: {
       grounded: { type: Number, default: 0 },
+      live:     { type: Number, default: 0 },
       ai:       { type: Number, default: 0 },
       static:   { type: Number, default: 0 },
     },
     priceLastUpdated: { type: Date, default: null },
+
     status: {
       type: String,
       enum: ['active', 'archived', 'draft'],

@@ -1,6 +1,9 @@
 // src/pages/MealPlanPage.jsx
 // DIETORA — Meal Plan Page
-// Shows price source badge (Live Google / AI / Market Research) per meal and plan-wide
+// v5: Dual data-source disclosure popups
+//   - planDataSource popup  → AI-generated vs Greedy Fallback
+//   - priceDataSource popup → Live Search vs Static Fallback
+//   Both auto-show on plan load; user can dismiss each one independently.
 
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
@@ -22,7 +25,13 @@ import {
 import { Link } from 'react-router-dom'
 import WeeklyCheckIn from '../components/onboarding/WeeklyCheckIn'
 import RecipeModal from '../components/meal/RecipeModal'
-import { Sunrise, Sun, Moon, Apple, Globe, Bot, BarChart2, Shuffle, ChefHat, CalendarDays, Loader2, Hospital, Activity, HeartPulse, Droplets, CheckCircle2, Heart, Pill, Fingerprint, AlertTriangle, Flame, Coins, ShoppingCart, Check, CheckSquare, Utensils, FileText, Lock } from 'lucide-react'
+import {
+  Sunrise, Sun, Moon, Apple, Globe, Bot, BarChart2, Shuffle, ChefHat,
+  CalendarDays, Loader2, Hospital, Activity, HeartPulse, Droplets,
+  CheckCircle2, Heart, Pill, Fingerprint, AlertTriangle, Flame, Coins,
+  ShoppingCart, Check, CheckSquare, Utensils, FileText, Lock, X,
+  Sparkles, Info, Database
+} from 'lucide-react'
 
 const MEAL_ICONS  = { breakfast: Sunrise, lunch: Sun, dinner: Moon, snack: Apple }
 const MEAL_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' }
@@ -30,8 +39,9 @@ const MEAL_ORDER  = ['breakfast', 'lunch', 'dinner', 'snack']
 
 // ─── Price source display metadata ───────────────────────
 const PRICE_SOURCE_META = {
-  grounded: { label: 'Live Google Search',   icon: Globe, colorText: 'text-emerald-600', colorBg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' },
-  ai:       { label: 'AI Market Knowledge',  icon: Bot, colorText: 'text-blue-600',    colorBg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' },
+  grounded: { label: 'Live Google Search',   icon: Globe,     colorText: 'text-emerald-600', colorBg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' },
+  live:     { label: 'Live Web Search',      icon: Globe,     colorText: 'text-emerald-600', colorBg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' },
+  ai:       { label: 'AI Market Knowledge',  icon: Bot,       colorText: 'text-blue-600',    colorBg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' },
   static:   { label: 'Market Research Data', icon: BarChart2, colorText: 'text-amber-600',   colorBg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' },
 }
 
@@ -49,6 +59,244 @@ function PriceSourceBadge({ source, inline = false }) {
     <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${meta.colorBg} ${meta.colorText}`}>
       <Icon className="w-3.5 h-3.5" /> {meta.label}
     </span>
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+//  DATA SOURCE DISCLOSURE POPUP
+//  Dono (plan + price) ke liye ek generic dismissable popup
+// ══════════════════════════════════════════════════════════
+function DataSourcePopup({ type, planDataSource, priceDataSource, priceSourceSummary, onDismiss }) {
+  // type: 'plan' | 'price'
+
+  if (type === 'plan') {
+    const isFallback = planDataSource === 'greedy_fallback'
+    return (
+      <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md animate-slide-up border-2 ${
+          isFallback
+            ? 'border-amber-300 dark:border-amber-700'
+            : 'border-emerald-300 dark:border-emerald-700'
+        }`}>
+          {/* Header */}
+          <div className={`rounded-t-2xl px-6 py-4 flex items-center justify-between ${
+            isFallback
+              ? 'bg-amber-50 dark:bg-amber-900/30'
+              : 'bg-emerald-50 dark:bg-emerald-900/30'
+          }`}>
+            <div className="flex items-center gap-3">
+              {isFallback
+                ? <Database className="w-7 h-7 text-amber-600" />
+                : <Sparkles className="w-7 h-7 text-emerald-600" />
+              }
+              <div>
+                <h3 className={`font-display font-bold text-lg ${
+                  isFallback ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'
+                }`}>
+                  {isFallback ? 'Meal Plan: Fallback Mode' : 'Meal Plan: AI Generated ✨'}
+                </h3>
+                <p className={`text-xs font-medium ${
+                  isFallback ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {isFallback ? 'Intelligent backup system used' : 'Clinical AI successfully generated your plan'}
+                </p>
+              </div>
+            </div>
+            <button onClick={onDismiss} className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="px-6 py-5 space-y-4">
+            {isFallback ? (
+              <>
+                <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                  Aapka meal plan <strong>Dietora ke intelligent fallback system</strong> ne banaya hai.
+                  AI (Groq LLM) 3 koshishon ke baad plan nahi bana saka — is liye hum ne ek{' '}
+                  <strong>medically-safe, deterministic algorithm</strong> use kiya.
+                </p>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    <Info className="w-4 h-4" /> Fallback plan ke bare mein jaanein
+                  </p>
+                  <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1 list-disc list-inside">
+                    <li>Aapki medical conditions aur allergies ka poora khayal rakha gaya hai ✓</li>
+                    <li>Sab foods disease-safe hain ✓</li>
+                    <li>Variety AI plan se thodi kam ho sakti hai</li>
+                    <li>Clinical analysis (nutrients/targets) available nahi ho sakti</li>
+                  </ul>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Behtar personalization ke liye <strong>Generate New Plan</strong> dobara try karein — AI service usually jald theek ho jaati hai.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                  Aapka meal plan <strong>Dietora ke Clinical AI</strong> ne banaya hai — Groq LLM (llama-3.3-70b)
+                  ne aapki health profile, medical conditions, allergies aur budget ka complete analysis karke{' '}
+                  7-day plan select kiya hai.
+                </p>
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> AI plan ki khubiyan
+                  </p>
+                  <ul className="text-xs text-emerald-700 dark:text-emerald-400 space-y-1 list-disc list-inside">
+                    <li>Clinical dietitian-level nutrient targets ✓</li>
+                    <li>Disease aur allergen safety guaranteed ✓</li>
+                    <li>7-din variety aur rotation ✓</li>
+                    <li>Aapke budget ke mutabiq ✓</li>
+                  </ul>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="px-6 pb-5">
+            <button
+              onClick={onDismiss}
+              className={`w-full py-2.5 rounded-xl text-sm font-bold transition-colors ${
+                isFallback
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+              }`}
+            >
+              Theek hai, samajh gaya
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // type === 'price'
+  const isStatic = priceDataSource === 'static'
+  const liveCount = (priceSourceSummary?.grounded || 0) + (priceSourceSummary?.live || 0)
+  const staticCount = priceSourceSummary?.static || 0
+  const aiCount = priceSourceSummary?.ai || 0
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md animate-slide-up border-2 ${
+        isStatic
+          ? 'border-amber-300 dark:border-amber-700'
+          : 'border-emerald-300 dark:border-emerald-700'
+      }`}>
+        {/* Header */}
+        <div className={`rounded-t-2xl px-6 py-4 flex items-center justify-between ${
+          isStatic
+            ? 'bg-amber-50 dark:bg-amber-900/30'
+            : 'bg-emerald-50 dark:bg-emerald-900/30'
+        }`}>
+          <div className="flex items-center gap-3">
+            {isStatic
+              ? <BarChart2 className="w-7 h-7 text-amber-600" />
+              : <Globe className="w-7 h-7 text-emerald-600" />
+            }
+            <div>
+              <h3 className={`font-display font-bold text-lg ${
+                isStatic ? 'text-amber-800 dark:text-amber-300' : 'text-emerald-800 dark:text-emerald-300'
+              }`}>
+                {isStatic ? 'Prices: Research Data' : 'Prices: Live Sources 🌐'}
+              </h3>
+              <p className={`text-xs font-medium ${
+                isStatic ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+              }`}>
+                {isStatic
+                  ? 'Prices from April 2026 Faisalabad research baseline'
+                  : 'Prices fetched from live web sources'
+                }
+              </p>
+            </div>
+          </div>
+          <button onClick={onDismiss} className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4">
+          {isStatic ? (
+            <>
+              <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                Is waqt prices <strong>Dietora ke pre-researched database</strong> se aayi hain.
+                Yeh prices April 2026 mein Faisalabad ke local dhabas, bazaar rates (UrduPoint),
+                aur grocery stores se gather ki gayi hain.
+              </p>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-3 space-y-2">
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <Info className="w-4 h-4" /> Research data ke bare mein
+                </p>
+                <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1 list-disc list-inside">
+                  <li>Source: UrduPoint market rates + local dhaba survey ✓</li>
+                  <li>Faisalabad serving-level prices (per person, per portion) ✓</li>
+                  <li>Live prices is waqt fetch nahi ho payin (timeout/API issue)</li>
+                  <li>Prices thodi purani ho sakti hain — market inflation ignore ho sakta hai</li>
+                </ul>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Live prices automatic background mein update hoti rehti hain jab service available ho.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed">
+                Aapke meal plan ki prices <strong>live web sources</strong> se fetch ki gayi hain —
+                Tavily Search + Gemini AI ne aaj ke Faisalabad market rates check karke accurate
+                serving-level prices provide ki hain.
+              </p>
+
+              {/* Source breakdown */}
+              {priceSourceSummary && (liveCount + staticCount + aiCount) > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {liveCount > 0 && (
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-center border border-emerald-200 dark:border-emerald-800">
+                      <Globe className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                      <p className="font-bold text-emerald-700 dark:text-emerald-400 text-lg">{liveCount}</p>
+                      <p className="text-[10px] text-emerald-600">Live Search</p>
+                    </div>
+                  )}
+                  {aiCount > 0 && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center border border-blue-200 dark:border-blue-800">
+                      <Bot className="w-5 h-5 text-blue-600 mx-auto mb-1" />
+                      <p className="font-bold text-blue-700 dark:text-blue-400 text-lg">{aiCount}</p>
+                      <p className="text-[10px] text-blue-600">AI Knowledge</p>
+                    </div>
+                  )}
+                  {staticCount > 0 && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-3 text-center border border-amber-200 dark:border-amber-800">
+                      <BarChart2 className="w-5 h-5 text-amber-600 mx-auto mb-1" />
+                      <p className="font-bold text-amber-700 dark:text-amber-400 text-lg">{staticCount}</p>
+                      <p className="text-[10px] text-amber-600">Research Data</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3">
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                  ✓ Prices dhaba serving-level hain (per person, per portion) — per-kg ya wholesale nahi
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="px-6 pb-5">
+          <button
+            onClick={onDismiss}
+            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-colors ${
+              isStatic
+                ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
+          >
+            Samajh gaya, theek hai
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -105,9 +353,7 @@ function MealSwapModal({ isOpen, onClose, day, mealType, planId }) {
   )
 }
 
-// ─── Helper: kya yeh day future mein hai? ────────────────
-// date string leke aaj ki date se compare karta hai
-// Returns true if dayDate > today (future)
+// ─── Helper: kya yeh day future mein hai? ─────────────────
 function isFutureDay(dateStr) {
   if (!dateStr) return false
   const today = new Date()
@@ -122,9 +368,7 @@ function MealCheckCard({ mealType, meal, dayNum, progressId, dayProgress, toggli
   const dispatch   = useDispatch()
   const mealDone   = dayProgress?.meals?.find((m) => m.mealType === mealType)?.completed || false
   const isToggling = toggling === `${dayNum}-${mealType}`
-
-  // Future day check — future k meals mark as done nahi ho sakte
-  const isFuture = isFutureDay(dayDate)
+  const isFuture   = isFutureDay(dayDate)
 
   const handleToggle = () => {
     if (!progressId || isFuture) return
@@ -155,7 +399,6 @@ function MealCheckCard({ mealType, meal, dayNum, progressId, dayProgress, toggli
         </div>
       )}
 
-      {/* Meal type header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Icon className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
@@ -164,31 +407,26 @@ function MealCheckCard({ mealType, meal, dayNum, progressId, dayProgress, toggli
           </span>
         </div>
         {!mealDone && progressId && !isFuture && (
-          <button onClick={() => onSwapClick(mealType)} title="Find alternatives" className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-100/80 dark:bg-emerald-900/50 px-2.5 py-1 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors">
+          <button onClick={() => onSwapClick(mealType)} title="Find alternatives"
+            className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-100/80 dark:bg-emerald-900/50 px-2.5 py-1 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800 transition-colors">
             <Shuffle className="w-3 h-3" /> Swap
           </button>
         )}
       </div>
 
-      {/* Food name */}
       <div className="mb-1">
         <h4 className={`font-display font-bold text-base leading-snug transition-colors ${
           mealDone ? 'text-emerald-700 dark:text-emerald-400 line-through opacity-80' : 'text-slate-800 dark:text-white'
         }`}>
           {meal.name}
         </h4>
-        <button
-          onClick={() => onRecipeClick(meal)}
-          className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors"
-        >
+        <button onClick={() => onRecipeClick(meal)}
+          className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-900/40 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
           <ChefHat className="w-3 h-3" /> View Recipe
         </button>
       </div>
-      {meal.category && (
-        <p className="text-xs text-slate-400 mb-4 capitalize">{meal.category}</p>
-      )}
+      {meal.category && <p className="text-xs text-slate-400 mb-4 capitalize">{meal.category}</p>}
 
-      {/* Nutrition + Price stats */}
       <div className="grid grid-cols-3 gap-1.5 mb-3">
         <div className="text-center bg-emerald-50 dark:bg-emerald-900/20 rounded-lg py-1.5">
           <p className="text-xs font-bold text-emerald-600">{meal.calories}</p>
@@ -207,7 +445,6 @@ function MealCheckCard({ mealType, meal, dayNum, progressId, dayProgress, toggli
         </div>
       </div>
 
-      {/* Disease safety badges */}
       {(meal.is_diabetic_safe || meal.is_hypertension_safe || meal.is_cardiac_safe || meal.is_kidney_safe || meal.is_thyroid_safe) && (
         <div className="mb-3 flex gap-1 flex-wrap">
           {meal.is_diabetic_safe     && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50   dark:bg-blue-900/20   text-blue-600 flex items-center gap-0.5"><Droplets className="w-2.5 h-2.5" /> Safe</span>}
@@ -218,26 +455,23 @@ function MealCheckCard({ mealType, meal, dayNum, progressId, dayProgress, toggli
         </div>
       )}
 
-      {/* Check-off button — future days par locked */}
       {progressId && (
         isFuture ? (
-          // Future day — sirf dekh sakte hain, mark nahi kar sakte
           <div className="w-full py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-700/60 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-dashed border-slate-300 dark:border-slate-600">
             <Lock className="w-3.5 h-3.5" /> Available on {new Date(dayDate).toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' })}
           </div>
         ) : (
-          <button
-            onClick={handleToggle}
-            disabled={isToggling}
+          <button onClick={handleToggle} disabled={isToggling}
             className={`w-full py-2 rounded-xl text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
               mealDone
                 ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                 : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700'
-            }`}
-          >
+            }`}>
             {isToggling
               ? <Loader2 className="w-4 h-4 animate-spin" />
-              : mealDone ? <><Check className="w-4 h-4" /> Done — Tap to undo</> : <><CheckSquare className="w-4 h-4" /> Mark as Done</>
+              : mealDone
+                ? <><Check className="w-4 h-4" /> Done — Tap to undo</>
+                : <><CheckSquare className="w-4 h-4" /> Mark as Done</>
             }
           </button>
         )
@@ -260,9 +494,7 @@ function DayNutritionSummary({ day, dayProgress }) {
   const completedMeals = dayProgress?.meals?.filter((m) => m.completed).length || 0
   const totalMeals     = dayProgress?.meals?.length || 4
   const pct            = Math.round((completedMeals / totalMeals) * 100)
-
-  // Future day badge
-  const future = isFutureDay(day.date)
+  const future         = isFutureDay(day.date)
 
   return (
     <div className="card bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border-emerald-100 dark:border-emerald-800">
@@ -292,11 +524,11 @@ function DayNutritionSummary({ day, dayProgress }) {
       </div>
       <div className="grid grid-cols-5 gap-2">
         {[
-          { label: 'Calories', value: totals.cal,             unit: '',   color: 'text-emerald-600' },
-          { label: 'Protein',  value: `${totals.prot}g`,      unit: '',   color: 'text-blue-600' },
-          { label: 'Carbs',    value: `${totals.carbs}g`,     unit: '',   color: 'text-orange-500' },
-          { label: 'Fat',      value: `${totals.fat}g`,       unit: '',   color: 'text-purple-600' },
-          { label: 'Cost',     value: `₨${totals.cost}`,      unit: '',   color: 'text-amber-600' },
+          { label: 'Calories', value: totals.cal,          color: 'text-emerald-600' },
+          { label: 'Protein',  value: `${totals.prot}g`,   color: 'text-blue-600' },
+          { label: 'Carbs',    value: `${totals.carbs}g`,  color: 'text-orange-500' },
+          { label: 'Fat',      value: `${totals.fat}g`,    color: 'text-purple-600' },
+          { label: 'Cost',     value: `₨${totals.cost}`,   color: 'text-amber-600' },
         ].map((item) => (
           <div key={item.label} className="text-center">
             <p className={`font-display font-bold text-lg leading-tight ${item.color}`}>{item.value}</p>
@@ -326,7 +558,8 @@ function WeeklyProgressBar({ progress, onCheckInClick }) {
           </p>
         </div>
         {weekCompleted && !checkInCompleted && (
-          <button onClick={onCheckInClick} className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 animate-pulse">
+          <button onClick={onCheckInClick}
+            className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 animate-pulse">
             Complete Check-In
           </button>
         )}
@@ -349,7 +582,9 @@ function WeeklyProgressBar({ progress, onCheckInClick }) {
           const dp    = total > 0 ? (done / total) * 100 : 0
           return (
             <div key={dayRecord.day} className="text-center">
-              <div className={`h-2 rounded-full mx-auto mb-1 transition-all ${dp === 100 ? 'bg-emerald-500' : dp >= 50 ? 'bg-amber-400' : dp > 0 ? 'bg-orange-300' : 'bg-slate-200 dark:bg-slate-700'}`} />
+              <div className={`h-2 rounded-full mx-auto mb-1 transition-all ${
+                dp === 100 ? 'bg-emerald-500' : dp >= 50 ? 'bg-amber-400' : dp > 0 ? 'bg-orange-300' : 'bg-slate-200 dark:bg-slate-700'
+              }`} />
               <span className="text-[10px] text-slate-400">D{dayRecord.day}</span>
             </div>
           )
@@ -366,7 +601,7 @@ function GeneratingOverlay({ message }) {
     { text: 'Analysing your health conditions...', icon: HeartPulse },
     { text: 'AI building clinical dietary brief...', icon: Bot },
     { text: 'Selecting medically safe foods...', icon: Activity },
-    { text: 'Fetching live PKR prices from Google...', icon: Globe },
+    { text: 'Fetching live PKR prices...', icon: Globe },
     { text: 'Assembling your 7-day plan...', icon: CalendarDays },
     { text: 'Almost ready...', icon: CheckCircle2 },
   ]
@@ -390,13 +625,11 @@ function GeneratingOverlay({ message }) {
         </div>
         <div className="flex gap-1 justify-center">
           {steps.map((_, i) => (
-            <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i <= step ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}
+            <div key={i}
+              className={`h-1.5 rounded-full transition-all duration-300 ${i <= step ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-600'}`}
               style={{ width: i <= step ? '18px' : '6px' }} />
           ))}
         </div>
-        <p className="text-xs text-slate-400 mt-4 flex items-center justify-center gap-2">
-          <Globe className="w-3 h-3" /> Prices sourced live from Google · <Bot className="w-3 h-3" /> Two-phase AI analysis
-        </p>
       </div>
     </div>
   )
@@ -411,10 +644,17 @@ export default function MealPlanPage() {
   const { data: profile }                                  = useSelector((s) => s.profile)
   const { current: progress, showCheckIn, regenerating, toggling } = useSelector((s) => s.progress)
 
-  const [showGenerator, setShowGenerator] = useState(false)
-  const [budgetOverride, setBudgetOverride] = useState('')
-  const [swapData, setSwapData] = useState(null)
-  const [recipeData, setRecipeData] = useState(null)
+  const [showGenerator,      setShowGenerator]      = useState(false)
+  const [budgetOverride,     setBudgetOverride]      = useState('')
+  const [swapData,           setSwapData]            = useState(null)
+  const [recipeData,         setRecipeData]          = useState(null)
+
+  // ── Data-source disclosure popup state ────────────────────
+  // We track the last planId we showed popups for, so they
+  // don't re-appear if the user navigates away and back.
+  const [disclosurePlanId,   setDisclosurePlanId]   = useState(null)
+  const [showPlanPopup,      setShowPlanPopup]       = useState(false)
+  const [showPricePopup,     setShowPricePopup]      = useState(false)
 
   useEffect(() => {
     dispatch(fetchProfile())
@@ -427,11 +667,9 @@ export default function MealPlanPage() {
     if (current?._id) dispatch(fetchCurrentProgress())
   }, [current?._id, dispatch])
 
-  // ── Bug Fix 1: Auto-select current day on plan load ───────
-  // Jab bhi active plan change ho (naya plan load ho ya login ke baad),
-  // plan ke days mein aaj ki date dhundo aur us par auto-jump karo.
-  // Agar aaj ka din plan mein nahi hai (e.g. plan expire ho gaya) toh pehla day.
   const activePlan = current || list?.[0]
+
+  // Auto-select today's day
   useEffect(() => {
     if (!activePlan?.days?.length) return
     const today = new Date()
@@ -442,10 +680,33 @@ export default function MealPlanPage() {
       dayDate.setHours(0, 0, 0, 0)
       return dayDate.getTime() === today.getTime()
     })
-    // Match mila → aaj ka din select karo
-    // Match nahi mila → pehla din (index 0) select karo
     dispatch(setSelectedDay(todayIdx !== -1 ? todayIdx : 0))
-  }, [activePlan?._id]) // Sirf jab plan change ho — user ki manual selection override na ho dobara
+  }, [activePlan?._id])
+
+  // ── Trigger disclosure popups when a new plan loads ───────
+  // Show plan popup first, then price popup after user dismisses plan popup.
+  // We store the planId we last showed popups for to avoid repeat shows.
+  useEffect(() => {
+    if (!activePlan?._id) return
+    if (activePlan._id === disclosurePlanId) return   // already shown for this plan
+
+    setDisclosurePlanId(activePlan._id)
+    // Show plan source popup first
+    setShowPlanPopup(true)
+    // Price popup will be triggered after plan popup is dismissed
+  }, [activePlan?._id])
+
+  const handlePlanPopupDismiss = () => {
+    setShowPlanPopup(false)
+    // After plan popup, show price popup
+    if (activePlan?.priceDataSource) {
+      setShowPricePopup(true)
+    }
+  }
+
+  const handlePricePopupDismiss = () => {
+    setShowPricePopup(false)
+  }
 
   const activeProgress      = (progress?.mealPlan === activePlan?._id || progress?.mealPlan?._id === activePlan?._id) ? progress : null
   const selectedDayProgress = activeProgress?.days?.find((d) => d.day === selectedDay + 1)
@@ -484,7 +745,25 @@ export default function MealPlanPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Overlays */}
+
+      {/* ── Data Source Disclosure Popups ─────────────────── */}
+      {showPlanPopup && activePlan && (
+        <DataSourcePopup
+          type="plan"
+          planDataSource={activePlan.planDataSource || 'ai_generated'}
+          onDismiss={handlePlanPopupDismiss}
+        />
+      )}
+      {showPricePopup && activePlan && (
+        <DataSourcePopup
+          type="price"
+          priceDataSource={activePlan.priceDataSource || 'static'}
+          priceSourceSummary={activePlan.priceSourceSummary}
+          onDismiss={handlePricePopupDismiss}
+        />
+      )}
+
+      {/* ── Generating / CheckIn Overlays ─────────────────── */}
       {(generating || regenerating) && (
         <GeneratingOverlay message={regenerating ? `Generating Week ${(activeProgress?.weekNumber || 1) + 1} Plan` : null} />
       )}
@@ -496,9 +775,10 @@ export default function MealPlanPage() {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="page-title">AI Meal Planner</h1>
-          <p className="page-subtitle">Personalized 7-day plans · Live PKR prices from Google · Daily check-offs</p>
+          <p className="page-subtitle">Personalized 7-day plans · Live PKR prices · Daily check-offs</p>
         </div>
-        <button onClick={() => setShowGenerator(true)} disabled={generating} className="btn-primary flex items-center gap-2 flex-shrink-0">
+        <button onClick={() => setShowGenerator(true)} disabled={generating}
+          className="btn-primary flex items-center gap-2 flex-shrink-0">
           <Bot className="w-5 h-5" /> Generate New Plan
         </button>
       </div>
@@ -523,7 +803,7 @@ export default function MealPlanPage() {
               <p className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-slate-400" /> Allergies: {profile.allergies?.join(', ') || 'None'}</p>
               <p className="flex items-center gap-1.5"><Flame className="w-3.5 h-3.5 text-orange-500" /> Daily target: ~{Math.round(profile.dailyCalorieTarget || profile.tdee || 2000)} kcal</p>
               <p className="flex items-center gap-1.5"><Coins className="w-3.5 h-3.5 text-amber-500" /> Default budget: ₨{profile.dailyBudget}/day</p>
-              <p className="text-emerald-600 font-semibold flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> Prices sourced live from Google Search</p>
+              <p className="text-emerald-600 font-semibold flex items-center gap-1.5"><Globe className="w-3.5 h-3.5" /> Prices sourced live from web</p>
             </div>
 
             <div className="mb-5">
@@ -548,7 +828,7 @@ export default function MealPlanPage() {
         <>
           {activeProgress && <WeeklyProgressBar progress={activeProgress} onCheckInClick={() => dispatch(setShowCheckIn(true))} />}
 
-          {/* Plan Info Bar + Price Source */}
+          {/* Plan Info Bar */}
           <div className="card space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-3">
@@ -567,11 +847,11 @@ export default function MealPlanPage() {
               </div>
               <div className="flex gap-5">
                 <div className="text-center">
-                  <p className="font-bold text-emerald-600 text-sm">₨{activePlan.weeklyTotalCost || activePlan.totalCost || 0}</p>
+                  <p className="font-bold text-emerald-600 text-sm">₨{activePlan.weeklyTotalCost || 0}</p>
                   <p className="text-xs text-slate-400">Weekly Cost</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-bold text-amber-600 text-sm">{Math.round((activePlan.weeklyTotalCalories || activePlan.totalCalories || 0) / 7)}</p>
+                  <p className="font-bold text-amber-600 text-sm">{Math.round((activePlan.weeklyTotalCalories || 0) / 7)}</p>
                   <p className="text-xs text-slate-400">Avg kcal/day</p>
                 </div>
                 <div className="text-center">
@@ -579,30 +859,60 @@ export default function MealPlanPage() {
                   <p className="text-xs text-slate-400">Per Day</p>
                 </div>
               </div>
-              <Link to="/grocery" className="btn-amber py-2 px-4 text-sm flex-shrink-0 flex items-center gap-1.5"><ShoppingCart className="w-4 h-4"/> Grocery List</Link>
+              <Link to="/grocery" className="btn-amber py-2 px-4 text-sm flex-shrink-0 flex items-center gap-1.5">
+                <ShoppingCart className="w-4 h-4"/> Grocery List
+              </Link>
             </div>
 
-            {/* Price source indicator */}
-            {activePlan.priceDataSource && (
-              <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">Price data:</span>
+            {/* Data source info bar — clickable to re-open popups */}
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-2 border-t border-slate-100 dark:border-slate-700">
+              {/* Plan source badge */}
+              <button
+                onClick={() => setShowPlanPopup(true)}
+                title="Click to learn more about how your meal plan was generated"
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-opacity hover:opacity-80 ${
+                  activePlan.planDataSource === 'greedy_fallback'
+                    ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+                    : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+                }`}
+              >
+                {activePlan.planDataSource === 'greedy_fallback'
+                  ? <><Database className="w-3.5 h-3.5" /> Fallback Plan <Info className="w-3 h-3 opacity-60" /></>
+                  : <><Sparkles className="w-3.5 h-3.5" /> AI Generated <Info className="w-3 h-3 opacity-60" /></>
+                }
+              </button>
+
+              {/* Price source badge */}
+              {activePlan.priceDataSource && (
+                <button
+                  onClick={() => setShowPricePopup(true)}
+                  title="Click to learn more about how prices were sourced"
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <span className="text-xs text-slate-400">Prices:</span>
                   <PriceSourceBadge source={activePlan.priceDataSource} />
+                  <Info className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+                </button>
+              )}
+
+              {/* Source counts */}
+              {activePlan.priceSourceSummary && (
+                <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                  {(activePlan.priceSourceSummary.grounded || activePlan.priceSourceSummary.live || 0) > 0 &&
+                    <span className="text-emerald-600 flex items-center gap-1">
+                      <Globe className="w-3 h-3"/>
+                      {(activePlan.priceSourceSummary.grounded || 0) + (activePlan.priceSourceSummary.live || 0)} live
+                    </span>
+                  }
+                  {activePlan.priceSourceSummary.ai > 0 &&
+                    <span className="text-blue-600 flex items-center gap-1"><Bot className="w-3 h-3"/> {activePlan.priceSourceSummary.ai} AI</span>
+                  }
+                  {activePlan.priceSourceSummary.static > 0 &&
+                    <span className="text-amber-600 flex items-center gap-1"><BarChart2 className="w-3 h-3"/> {activePlan.priceSourceSummary.static} research</span>
+                  }
                 </div>
-                {activePlan.priceLastUpdated && (
-                  <span className="text-[10px] text-slate-400">
-                    Updated {new Date(activePlan.priceLastUpdated).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-                {activePlan.priceSourceSummary && (
-                  <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                    {activePlan.priceSourceSummary.grounded > 0 && <span className="text-emerald-600 flex items-center gap-1"><Globe className="w-3 h-3"/> {activePlan.priceSourceSummary.grounded} live</span>}
-                    {activePlan.priceSourceSummary.ai > 0       && <span className="text-blue-600 flex items-center gap-1"><Bot className="w-3 h-3"/> {activePlan.priceSourceSummary.ai} AI</span>}
-                    {activePlan.priceSourceSummary.static > 0   && <span className="text-amber-600 flex items-center gap-1"><BarChart2 className="w-3 h-3"/> {activePlan.priceSourceSummary.static} research</span>}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Day Tabs */}
@@ -627,7 +937,6 @@ export default function MealPlanPage() {
                       {new Date(dayObj.date).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
                     </span>
                   )}
-                  {/* Future days par lock icon, baaki par progress */}
                   {activeProgress && (
                     <span className={`flex justify-center items-center gap-0.5 text-[10px] mt-0.5 ${
                       future
@@ -642,12 +951,10 @@ export default function MealPlanPage() {
             })}
           </div>
 
-          {/* Day Summary */}
           {activePlan.days?.[selectedDay] && (
             <DayNutritionSummary day={activePlan.days[selectedDay]} dayProgress={selectedDayProgress} />
           )}
 
-          {/* Meal Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {MEAL_ORDER.map((mealType) => (
               <MealCheckCard key={mealType} mealType={mealType}
@@ -660,8 +967,8 @@ export default function MealPlanPage() {
             ))}
           </div>
 
-          <MealSwapModal 
-            isOpen={!!swapData} 
+          <MealSwapModal
+            isOpen={!!swapData}
             onClose={() => setSwapData(null)}
             day={swapData?.day}
             mealType={swapData?.mealType}
@@ -675,7 +982,6 @@ export default function MealPlanPage() {
             foodName={recipeData?.foodName}
           />
 
-          {/* No progress tracker */}
           {!activeProgress && activePlan?._id && (
             <div className="card text-center py-10 border-dashed border-2 bg-slate-50/50 dark:bg-slate-800/50">
               <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -683,12 +989,15 @@ export default function MealPlanPage() {
               </div>
               <p className="text-base font-bold text-slate-800 dark:text-white mb-2">Enable meal tracking</p>
               <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">Track daily meals and get a personalized next-week update based on your adherence</p>
-              <button onClick={() => dispatch(require('../store/slices/progressSlice').initProgress(activePlan._id)).then(() => dispatch(fetchCurrentProgress()))}
-                className="btn-primary py-2.5 px-8 inline-flex"><Activity className="w-4 h-4" /> Start Tracking</button>
+              <button
+                onClick={() => dispatch(require('../store/slices/progressSlice').initProgress(activePlan._id))
+                  .then(() => dispatch(fetchCurrentProgress()))}
+                className="btn-primary py-2.5 px-8 inline-flex">
+                <Activity className="w-4 h-4" /> Start Tracking
+              </button>
             </div>
           )}
 
-          {/* Past Plans */}
           {list.length > 1 && (
             <div className="card">
               <h3 className="font-display font-bold text-slate-800 dark:text-white mb-4 text-base flex items-center gap-2">
@@ -702,7 +1011,7 @@ export default function MealPlanPage() {
                       <p className="text-xs text-slate-400">{new Date(plan.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="flex items-center gap-3 text-xs">
-                      <span className="text-amber-600 font-semibold">₨{plan.weeklyTotalCost || plan.totalCost || '—'}</span>
+                      <span className="text-amber-600 font-semibold">₨{plan.weeklyTotalCost || '—'}</span>
                       <span className="badge bg-slate-100 dark:bg-slate-700 text-slate-500 px-2 py-0.5 rounded-full">Archived</span>
                     </div>
                   </div>
@@ -718,9 +1027,11 @@ export default function MealPlanPage() {
           </div>
           <h3 className="font-display font-bold text-3xl text-slate-800 dark:text-white mb-3">No meal plans yet</h3>
           <p className="text-slate-500 dark:text-slate-400 mb-8 text-base max-w-md mx-auto leading-relaxed">
-            Generate your first AI-powered 7-day plan with live PKR prices from Google Search and clinical safety checks.
+            Generate your first AI-powered 7-day plan with live PKR prices and clinical safety checks.
           </p>
-          <button onClick={() => setShowGenerator(true)} className="btn-primary py-3 px-8 text-base inline-flex"><Bot className="w-5 h-5" /> Generate My First Plan</button>
+          <button onClick={() => setShowGenerator(true)} className="btn-primary py-3 px-8 text-base inline-flex">
+            <Bot className="w-5 h-5" /> Generate My First Plan
+          </button>
         </div>
       )}
     </div>

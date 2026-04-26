@@ -5,11 +5,41 @@ import toast from 'react-hot-toast'
 
 // ─── Thunks ───────────────────────────────────────────────
 
-export const generateMealPlan = createAsyncThunk('mealPlan/generate', async (params, { rejectWithValue }) => {
+export const generateMealPlan = createAsyncThunk('mealPlan/generate', async (params, { rejectWithValue, dispatch }) => {
   try {
-    const { data } = await api.post('/meal-plans/generate', params || {})
+    // Long timeout because: clinical analysis (LLM) + Tavily price search +
+    // Mongo write can legitimately take 15-25s under normal conditions.
+    const { data } = await api.post('/meal-plans/generate', params || {}, { timeout: 90000 })
     return data
   } catch (err) {
+    // Special case: request timed out OR connection died mid-flight.
+    // The backend may have actually finished the plan and saved it to DB.
+    // Check by polling the active plan endpoint before declaring failure.
+    const isTimeoutOrAbort =
+      err.code === 'ECONNABORTED' ||
+      err.code === 'ERR_NETWORK' ||
+      err.message?.includes('timeout') ||
+      err.message?.includes('Network Error')
+
+    if (isTimeoutOrAbort) {
+      console.warn('[MealPlan] Request timed out — checking if plan was actually saved...')
+      // Wait a moment for any in-flight DB writes to settle
+      await new Promise((r) => setTimeout(r, 2500))
+      try {
+        const { data: activeData } = await api.get('/meal-plans/active', { timeout: 15000 })
+        const recoveredPlan = activeData?.data || activeData
+        if (recoveredPlan?.mealPlan?._id || recoveredPlan?._id) {
+          console.log('[MealPlan] ✔ Plan was saved despite timeout — recovered from DB')
+          // Refresh the list too so it shows up in the sidebar
+          dispatch(fetchMealPlans())
+          return recoveredPlan
+        }
+      } catch (recoverErr) {
+        console.error('[MealPlan] Recovery check failed:', recoverErr.message)
+      }
+      return rejectWithValue('The plan is taking longer than usual. Please refresh the page in a moment to check if it was saved.')
+    }
+
     const msg = err.response?.data?.message || 'Failed to generate meal plan'
     return rejectWithValue(msg)
   }

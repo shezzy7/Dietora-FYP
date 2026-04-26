@@ -1,33 +1,26 @@
 // src/services/mealPlanner.service.js
-// DIETORA — Agentic Meal Planning Engine (LangGraph + Gemini 2.5 Flash)
-//
-// Changes from original:
-//  - REMOVED the fallback engine entirely. If Gemini fails after 3 attempts,
-//    we throw a clear error to the controller. No silent bad plan is saved.
-//  - Improved food name resolution (exact → prefix/suffix → token overlap).
-//  - Retry wrapper for transient Gemini API errors (429, 503, network).
-//  - Cleaner separation between graph execution and plan assembly.
+// DIETORA — Agentic Meal Planning Engine (LangGraph + Groq)
 
 'use strict';
 
-const FoodItem          = require('../models/FoodItem');
+const FoodItem = require('../models/FoodItem');
 const { buildMealPlannerGraph } = require('./ai/mealPlanner/graph');
-const NodeCache         = require('node-cache');
+const NodeCache = require('node-cache');
 
 // ─── Food cache (1 hour TTL) ──────────────────────────────
 const foodCache = new NodeCache({ stdTTL: 3600 });
 
 // ─── Date helpers ──────────────────────────────────────────
-const JS_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const getDayName   = (date) => JS_DAY_NAMES[date.getDay()];
-const addDays      = (date, n) => {
+const JS_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const getDayName = (date) => JS_DAY_NAMES[date.getDay()];
+const addDays = (date, n) => {
   const d = new Date(date);
   d.setDate(d.getDate() + n);
   d.setHours(0, 0, 0, 0);
   return d;
 };
 
-// ─── Retry helper (for transient Gemini errors) ────────────
+// ─── Retry helper (for transient API errors) ────────────
 const withRetry = async (fn, maxAttempts = 3, baseDelayMs = 2000) => {
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -49,7 +42,7 @@ const withRetry = async (fn, maxAttempts = 3, baseDelayMs = 2000) => {
         break;
       }
 
-      const delay = baseDelayMs * attempt; // 2s, 4s, 6s
+      const delay = baseDelayMs * attempt;
       console.warn(`[MealPlanner] Transient error on attempt ${attempt}. Retrying in ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
@@ -64,10 +57,10 @@ const buildMealSlot = (food, quantity = 1) => {
     foodItem: food._id,
     quantity,
     calories: Math.round(food.calories * quantity),
-    protein:  parseFloat((food.protein  * quantity).toFixed(1)),
-    carbs:    parseFloat((food.carbs    * quantity).toFixed(1)),
-    fat:      parseFloat((food.fat      * quantity).toFixed(1)),
-    price:    parseFloat((food.price    * quantity).toFixed(2)),
+    protein: parseFloat((food.protein * quantity).toFixed(1)),
+    carbs: parseFloat((food.carbs * quantity).toFixed(1)),
+    fat: parseFloat((food.fat * quantity).toFixed(1)),
+    price: parseFloat((food.price * quantity).toFixed(2)),
   };
 };
 
@@ -81,23 +74,20 @@ const resolveFoodByName = (name, foodMap) => {
   if (!name) return null;
   const lower = name.toLowerCase().trim();
 
-  // Tier 1: exact
   if (foodMap.has(lower)) return foodMap.get(lower);
 
-  // Tier 2: substring containment
   for (const [key, food] of foodMap.entries()) {
     if (key.includes(lower) || lower.includes(key)) return food;
   }
 
-  // Tier 3: token overlap
   const queryTokens = new Set(lower.split(/\s+/));
-  let bestMatch  = null;
-  let bestScore  = 0;
+  let bestMatch = null;
+  let bestScore = 0;
 
   for (const [key, food] of foodMap.entries()) {
     const keyTokens = key.split(/\s+/);
-    const matches   = keyTokens.filter((t) => queryTokens.has(t)).length;
-    const score     = matches / Math.max(keyTokens.length, queryTokens.size);
+    const matches = keyTokens.filter((t) => queryTokens.has(t)).length;
+    const score = matches / Math.max(keyTokens.length, queryTokens.size);
     if (score > bestScore && score >= 0.5) {
       bestScore = score;
       bestMatch = food;
@@ -134,8 +124,8 @@ const assembleGraphPlan = (agentPlan, foodMap, startDate) => {
     const allSlots  = [...breakfast, ...lunch, ...dinner, ...snack];
 
     return {
-      day:           i + 1,
-      date:          dayDate,
+      day: i + 1,
+      date: dayDate,
       dayName,
       breakfast,
       lunch,
@@ -152,15 +142,16 @@ const assembleGraphPlan = (agentPlan, foodMap, startDate) => {
 
 // ─── MAIN EXPORT ───────────────────────────────────────────
 /**
- * Generate a personalised 7-day meal plan using the Gemini-powered LangGraph agent.
+ * Generate a personalised 7-day meal plan using the LangGraph agent.
  *
- * Throws if Gemini fails after all retries — the controller will return HTTP 500
- * with a clear message instead of saving a broken plan to the database.
+ * Returns planDataSource = 'greedy_fallback' when the LLM failed all retries
+ * and the deterministic engine was used instead. The controller must persist
+ * this field so the frontend can show the appropriate disclosure banner.
  *
- * @param {Object} healthProfile  - HealthProfile mongoose document (or lean object)
- * @param {Date}   startDate      - Plan start date
+ * @param {Object} healthProfile     - HealthProfile mongoose document (or lean object)
+ * @param {Date}   startDate         - Plan start date
  * @param {Object} [checkInFeedback] - Optional weekly check-in feedback
- * @returns {Object} planData - Days + summary stats
+ * @returns {Object} planData        - Days + summary stats + planDataSource
  */
 const generateMealPlan = async (healthProfile, startDate, checkInFeedback = null) => {
   const planStartDate = startDate instanceof Date ? startDate : new Date();
@@ -177,27 +168,22 @@ const generateMealPlan = async (healthProfile, startDate, checkInFeedback = null
     throw new Error('No available food items found in the database.');
   }
 
-  // Build case-insensitive food map for assembly
   const foodMap = new Map();
   allFoods.forEach((f) => foodMap.set(f.name.toLowerCase().trim(), f));
 
   console.log(`[MealPlanner] Starting LangGraph agent. Foods available: ${allFoods.length}`);
 
-  // Run the LangGraph agent (with outer retry for transient API errors)
   const finalState = await withRetry(async () => {
     const graph = buildMealPlannerGraph();
     return await graph.invoke({
-      profile:            healthProfile,
+      profile: healthProfile,
       checkInFeedback,
-      availableFoods:     allFoods,
-      startDate:          planStartDate,
+      availableFoods: allFoods,
+      startDate: planStartDate,
       generationAttempts: 0,
     });
   });
 
-  // finalPlan is only set when validation passes.
-  // If we get here without it, the graph hit max_retries and the fail_node should
-  // have thrown — but guard defensively.
   if (!finalState.finalPlan || finalState.finalPlan.length < 7) {
     const errSummary = (finalState.validationErrors || []).join('; ') || 'Unknown error';
     throw new Error(
@@ -208,29 +194,38 @@ const generateMealPlan = async (healthProfile, startDate, checkInFeedback = null
 
   const days = assembleGraphPlan(finalState.finalPlan, foodMap, planStartDate);
 
-  // Sanity check: too many completely empty days means food resolution is broken
   const emptyDays = days.filter(
     (d) => d.breakfast.length === 0 && d.lunch.length === 0 && d.dinner.length === 0
   );
   if (emptyDays.length > 2) {
     throw new Error(
-      `Plan assembly produced ${emptyDays.length} empty days — food names could not be resolved. ` +
-      `Check that catalogue food names match the database exactly.`
+      `Plan assembly produced ${emptyDays.length} empty days — food names could not be resolved.`
     );
   }
 
-  console.log(
-    `[MealPlanner] ✔ Plan generated successfully in ${finalState.generationAttempts} attempt(s). ` +
-    `Empty days: ${emptyDays.length}`
-  );
+  // ── Determine plan data source ────────────────────────────
+  // usedFallback is set by greedyFallbackNode in nodes.js
+  const planDataSource = finalState.usedFallback ? 'greedy_fallback' : 'ai_generated';
+
+  if (finalState.usedFallback) {
+    console.warn(
+      `[MealPlanner] ⚠ Plan produced by GREEDY FALLBACK after ${finalState.generationAttempts} failed LLM attempt(s). ` +
+      `Plan is medically safe but less personalised. planDataSource='greedy_fallback'`
+    );
+  } else {
+    console.log(
+      `[MealPlanner] ✔ AI plan generated in ${finalState.generationAttempts} attempt(s). planDataSource='ai_generated'`
+    );
+  }
 
   const weeklyTotalCalories = days.reduce((s, d) => s + d.totalCalories, 0);
   const weeklyTotalCost     = days.reduce((s, d) => s + d.totalCost,     0);
 
   return {
     days,
-    startDate:      planStartDate,
-    aiUsed:         true,
+    startDate:    planStartDate,
+    aiUsed:       true,
+    planDataSource,                        // ← NEW: 'ai_generated' | 'greedy_fallback'
     clinicalAnalysis: finalState.clinicalAnalysis,
     planConfig: {
       dailyCalorieTarget: healthProfile.dailyCalorieTarget,

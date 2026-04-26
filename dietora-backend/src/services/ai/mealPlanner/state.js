@@ -1,5 +1,5 @@
 // src/services/ai/mealPlanner/state.js
-const { Annotation } = require("@langchain/langgraph");
+const { Annotation } = require('@langchain/langgraph');
 
 const MealPlannerState = Annotation.Root({
   // ── Inputs ────────────────────────────────────────────
@@ -13,6 +13,10 @@ const MealPlannerState = Annotation.Root({
   draftPlanRaw:     Annotation(),
   draftPlanParsed:  Annotation(),
 
+  // Per-slot safe pools — populated by bucketByMealTypeNode
+  // Shape: { breakfast: [FoodItem...], lunch: [...], dinner: [...], snack: [...] }
+  mealBuckets: Annotation(),
+
   // ID→food map built in GenerateMealPlan, read in ValidatePlan
   idToFood: Annotation(),
 
@@ -23,6 +27,9 @@ const MealPlannerState = Annotation.Root({
     reducer: (curr, update) => (curr ?? 0) + update,
     default: () => 0,
   }),
+
+  // Set true if greedy fallback produced the plan instead of the LLM
+  usedFallback: Annotation(),
 
   // ── Output ────────────────────────────────────────────
   finalPlan: Annotation(),

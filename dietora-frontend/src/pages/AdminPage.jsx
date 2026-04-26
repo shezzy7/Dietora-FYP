@@ -17,16 +17,30 @@ export default function AdminPage() {
   })
 
   useEffect(() => {
-    if (tab === 'foods') fetchFoods()
-    if (tab === 'users') fetchUsers()
+    if (tab === 'foods')    fetchFoods()
+    if (tab === 'users')    fetchUsers()
     if (tab === 'feedback') fetchFeedbacks()
   }, [tab])
+
+  // ── Helper: extract array from any API response shape ──
+  const extractArray = (data) => {
+    if (Array.isArray(data))       return data
+    if (Array.isArray(data?.data)) return data.data
+    if (Array.isArray(data?.foods))    return data.foods
+    if (Array.isArray(data?.users))    return data.users
+    if (Array.isArray(data?.feedback)) return data.feedback
+    if (Array.isArray(data?.items))    return data.items
+    // Paginated response
+    if (data?.data?.docs)  return data.data.docs
+    if (data?.data?.items) return data.data.items
+    return []
+  }
 
   const fetchFoods = async () => {
     setLoading(true)
     try {
       const { data } = await api.get('/admin/foods')
-      setFoods(data.foods || data)
+      setFoods(extractArray(data))
     } catch { toast.error('Failed to load foods') }
     finally { setLoading(false) }
   }
@@ -35,7 +49,7 @@ export default function AdminPage() {
     setLoading(true)
     try {
       const { data } = await api.get('/admin/users')
-      setUsers(data.users || data)
+      setUsers(extractArray(data))
     } catch { toast.error('Failed to load users') }
     finally { setLoading(false) }
   }
@@ -44,7 +58,7 @@ export default function AdminPage() {
     setLoading(true)
     try {
       const { data } = await api.get('/feedback')
-      setFeedbacks(data.data || data.feedback || [])
+      setFeedbacks(extractArray(data))
     } catch { toast.error('Failed to load feedback') }
     finally { setLoading(false) }
   }
@@ -93,15 +107,6 @@ export default function AdminPage() {
     } catch { toast.error('Failed to resolve feedback') }
   }
 
-  const deleteFeedback = async (id) => {
-    if (!window.confirm('Delete this feedback permanently?')) return
-    try {
-      await api.delete(`/feedback/${id}`)
-      toast.success('Feedback deleted')
-      fetchFeedbacks()
-    } catch { toast.error('Failed to delete feedback') }
-  }
-
   return (
     <div className="animate-fade-in">
       <div className="page-header">
@@ -111,15 +116,23 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
-        {[{ key: 'foods', label: <span className="flex items-center gap-1.5"><Utensils className="w-4 h-4"/> Food Items</span> }, { key: 'users', label: <span className="flex items-center gap-1.5"><Users className="w-4 h-4"/> Users</span> }, { key: 'feedback', label: <span className="flex items-center gap-1.5"><MessageSquare className="w-4 h-4"/> Feedback</span> }].map((t) => (
+        {[
+          { key: 'foods',    label: 'Food Items', icon: Utensils },
+          { key: 'users',    label: 'Users',      icon: Users },
+          { key: 'feedback', label: 'Feedback',   icon: MessageSquare },
+        ].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-5 py-2 rounded-xl font-semibold text-sm transition-all ${tab === t.key ? 'bg-emerald-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
-            {t.label}
+            className={`flex items-center gap-1.5 px-5 py-2 rounded-xl font-semibold text-sm transition-all ${
+              tab === t.key
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+            }`}>
+            <t.icon className="w-4 h-4" /> {t.label}
           </button>
         ))}
       </div>
 
-      {/* Food Items Tab */}
+      {/* ── Food Items Tab ─────────────────────────────── */}
       {tab === 'foods' && (
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -131,23 +144,37 @@ export default function AdminPage() {
           {showFoodForm && (
             <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
               <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
-                <h3 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-5">{editFood ? 'Edit Food' : 'Add New Food'}</h3>
+                <h3 className="font-display font-bold text-xl text-slate-800 dark:text-white mb-5">
+                  {editFood ? 'Edit Food' : 'Add New Food'}
+                </h3>
                 <form onSubmit={handleFoodSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
-                      <label className="label">Food Name (Urdu/English)</label>
-                      <input value={foodForm.name} onChange={e => setFoodForm({...foodForm, name: e.target.value})} placeholder="e.g., Dal Mash" required className="input-field" />
+                      <label className="label">Food Name</label>
+                      <input value={foodForm.name}
+                        onChange={e => setFoodForm({...foodForm, name: e.target.value})}
+                        placeholder="e.g., Dal Mash" required className="input-field" />
                     </div>
-                    {[{k:'calories',l:'Calories (kcal)'},{k:'price',l:'Price (PKR)'},{k:'protein',l:'Protein (g)'},{k:'carbs',l:'Carbs (g)'},{k:'fat',l:'Fat (g)'}].map(f => (
+                    {[
+                      { k: 'calories', l: 'Calories (kcal)' },
+                      { k: 'price',    l: 'Price (PKR)' },
+                      { k: 'protein',  l: 'Protein (g)' },
+                      { k: 'carbs',    l: 'Carbs (g)' },
+                      { k: 'fat',      l: 'Fat (g)' },
+                    ].map(f => (
                       <div key={f.k}>
                         <label className="label">{f.l}</label>
-                        <input type="number" min="0" value={foodForm[f.k]} onChange={e => setFoodForm({...foodForm, [f.k]: e.target.value})} required className="input-field" />
+                        <input type="number" min="0" value={foodForm[f.k]}
+                          onChange={e => setFoodForm({...foodForm, [f.k]: e.target.value})}
+                          required className="input-field" />
                       </div>
                     ))}
                     <div>
                       <label className="label">Category</label>
-                      <select value={foodForm.category} onChange={e => setFoodForm({...foodForm, category: e.target.value})} className="input-field">
-                        {['grain', 'protein', 'vegetable', 'dairy', 'fruit', 'beverage', 'snack', 'legume'].map(c => (
+                      <select value={foodForm.category}
+                        onChange={e => setFoodForm({...foodForm, category: e.target.value})}
+                        className="input-field">
+                        {['grain','protein','vegetable','dairy','fruit','beverage','snack','legume'].map(c => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
@@ -157,14 +184,15 @@ export default function AdminPage() {
                   <div className="space-y-2">
                     <label className="label">Safety Flags</label>
                     {[
-                      { key: 'is_diabetic_safe', label: <span className="flex items-center gap-1.5"><Droplets className="w-4 h-4 text-blue-500" /> Diabetic Safe</span> },
-                      { key: 'is_hypertension_safe', label: <span className="flex items-center gap-1.5"><Heart className="w-4 h-4 text-red-500" /> Hypertension Safe</span> },
-                      { key: 'is_cardiac_safe', label: <span className="flex items-center gap-1.5"><Activity className="w-4 h-4 text-purple-500" /> Cardiac Safe</span> },
+                      { key: 'is_diabetic_safe',     label: 'Diabetic Safe',     Icon: Droplets,  color: 'text-blue-500' },
+                      { key: 'is_hypertension_safe', label: 'Hypertension Safe', Icon: Heart,     color: 'text-red-500' },
+                      { key: 'is_cardiac_safe',      label: 'Cardiac Safe',      Icon: Activity,  color: 'text-purple-500' },
                     ].map(f => (
                       <label key={f.key} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" checked={foodForm[f.key]}
+                        <input type="checkbox" checked={!!foodForm[f.key]}
                           onChange={e => setFoodForm({...foodForm, [f.key]: e.target.checked})}
                           className="w-4 h-4 rounded text-emerald-600" />
+                        <f.Icon className={`w-4 h-4 ${f.color}`} />
                         <span className="text-sm text-slate-700 dark:text-slate-300">{f.label}</span>
                       </label>
                     ))}
@@ -181,13 +209,15 @@ export default function AdminPage() {
 
           {/* Foods Table */}
           {loading ? (
-            <div className="card text-center py-12"><div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
+            <div className="card text-center py-12">
+              <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
+            </div>
           ) : (
             <div className="card overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-700">
-                    {['Name', 'Category', 'Calories', 'Price (₨)', 'Protein', 'Safety Flags', 'Actions'].map(h => (
+                    {['Name','Category','Calories','Price (₨)','Protein','Safety','Actions'].map(h => (
                       <th key={h} className="text-left px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -202,9 +232,9 @@ export default function AdminPage() {
                       <td className="px-4 py-3 text-blue-600">{food.protein}g</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          {food.is_diabetic_safe && <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-600 px-1.5 py-0.5 rounded">D</span>}
-                          {food.is_hypertension_safe && <span className="text-xs bg-red-100 dark:bg-red-900/20 text-red-600 px-1.5 py-0.5 rounded">H</span>}
-                          {food.is_cardiac_safe && <span className="text-xs bg-purple-100 dark:bg-purple-900/20 text-purple-600 px-1.5 py-0.5 rounded">C</span>}
+                          {food.is_diabetic_safe     && <span className="text-xs bg-blue-100   dark:bg-blue-900/20   text-blue-600   px-1.5 py-0.5 rounded font-bold">D</span>}
+                          {food.is_hypertension_safe && <span className="text-xs bg-red-100    dark:bg-red-900/20    text-red-600    px-1.5 py-0.5 rounded font-bold">H</span>}
+                          {food.is_cardiac_safe      && <span className="text-xs bg-purple-100 dark:bg-purple-900/20 text-purple-600 px-1.5 py-0.5 rounded font-bold">C</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -225,18 +255,20 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Users Tab */}
+      {/* ── Users Tab ──────────────────────────────────── */}
       {tab === 'users' && (
         <div>
           <p className="text-sm text-slate-500 mb-4">{users.length} registered users</p>
           {loading ? (
-            <div className="card text-center py-12"><div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
+            <div className="card text-center py-12">
+              <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
+            </div>
           ) : (
             <div className="card overflow-x-auto p-0">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-700">
-                    {['Name', 'Email', 'Role', 'Joined', 'Profile'].map(h => (
+                    {['Name','Email','Role','Joined','Profile'].map(h => (
                       <th key={h} className="text-left px-4 py-3 font-semibold text-slate-500 dark:text-slate-400 text-xs uppercase">{h}</th>
                     ))}
                   </tr>
@@ -246,20 +278,30 @@ export default function AdminPage() {
                     <tr key={u._id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">{u.name?.[0]}</div>
+                          <div className="w-7 h-7 bg-emerald-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                            {u.name?.[0]?.toUpperCase() || '?'}
+                          </div>
                           <span className="font-medium text-slate-800 dark:text-white">{u.name}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-slate-500">{u.email}</td>
                       <td className="px-4 py-3">
-                        <span className={u.role === 'admin' ? 'badge bg-purple-100 dark:bg-purple-900/20 text-purple-600' : 'badge-emerald'}>
+                        <span className={u.role === 'admin'
+                          ? 'badge bg-purple-100 dark:bg-purple-900/20 text-purple-600'
+                          : 'badge-emerald'}>
                           {u.role || 'user'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-400 text-xs">{new Date(u.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-slate-400 text-xs">
+                        {new Date(u.createdAt).toLocaleDateString()}
+                      </td>
                       <td className="px-4 py-3">
-                        <span className={`badge flex items-center gap-1 w-fit ${u.healthProfile ? 'badge-emerald' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
-                          {u.healthProfile ? <><Check className="w-3.5 h-3.5" /> Complete</> : <><X className="w-3.5 h-3.5" /> Missing</>}
+                        <span className={`badge flex items-center gap-1 w-fit ${u.healthProfile
+                          ? 'badge-emerald'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
+                          {u.healthProfile
+                            ? <><Check className="w-3.5 h-3.5" /> Complete</>
+                            : <><X className="w-3.5 h-3.5" /> Missing</>}
                         </span>
                       </td>
                     </tr>
@@ -274,107 +316,69 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Feedback Tab */}
+      {/* ── Feedback Tab ───────────────────────────────── */}
       {tab === 'feedback' && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-slate-500">{feedbacks.length} feedback entries</p>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">
-                All feedback is publicly visible on the landing page
-              </span>
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            </div>
-          </div>
-
+          <p className="text-sm text-slate-500 mb-4">{feedbacks.length} feedback entries</p>
           {loading ? (
-            <div className="card text-center py-12"><div className="w-8 h-8 border-3 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" /></div>
+            <div className="card text-center py-12">
+              <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto" />
+            </div>
           ) : feedbacks.length === 0 ? (
             <div className="card text-center py-16">
-              <div className="flex justify-center mb-4 text-emerald-600"><MessageSquare className="w-12 h-12" /></div>
+              <MessageSquare className="w-12 h-12 text-emerald-600 mx-auto mb-4" />
               <h3 className="font-display font-bold text-lg text-slate-800 dark:text-white mb-2">No feedback yet</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">User feedback will appear here once submitted.</p>
+              <p className="text-sm text-slate-500">User feedback will appear here once submitted.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {feedbacks.map((fb) => (
                 <div key={fb._id} className="card hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-4">
-                    {/* User info + review content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                           {fb.user?.name?.[0]?.toUpperCase() || '?'}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-800 dark:text-white text-sm">
-                            {fb.user?.name || 'Unknown User'}
-                          </p>
+                          <p className="font-semibold text-slate-800 dark:text-white text-sm">{fb.user?.name || 'Unknown'}</p>
                           <p className="text-xs text-slate-400">{fb.user?.email}</p>
                         </div>
                       </div>
-
-                      {/* Star Rating */}
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Star key={i} className={`w-4 h-4 ${i <= fb.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-300 dark:text-slate-600'}`} />
+                          {[1,2,3,4,5].map((i) => (
+                            <Star key={i} className={`w-4 h-4 ${i <= fb.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
                           ))}
                         </div>
                         <span className="text-xs font-semibold text-amber-600">{fb.rating}/5</span>
                         {fb.category && (
-                          <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 px-2 py-0.5 rounded-full font-medium">
-                            {fb.category}
-                          </span>
+                          <span className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 px-2 py-0.5 rounded-full font-medium">{fb.category}</span>
                         )}
                       </div>
-
-                      {/* Comment */}
                       {fb.comment && (
                         <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed bg-slate-50 dark:bg-slate-700/30 rounded-xl p-3 italic">
                           "{fb.comment}"
                         </p>
                       )}
-
-                      {/* Admin response if resolved */}
-                      {fb.isResolved && fb.adminResponse && (
-                        <div className="mt-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 border-l-3 border-emerald-500">
-                          <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">Admin Response:</p>
-                          <p className="text-xs text-emerald-600 dark:text-emerald-500">{fb.adminResponse}</p>
-                        </div>
-                      )}
                     </div>
-
-                    {/* Meta + Actions */}
                     <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                      <span className="text-xs text-slate-400 whitespace-nowrap">
+                      <span className="text-xs text-slate-400">
                         {new Date(fb.createdAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
-
-                      {/* Status badges */}
-                      <div className="flex gap-1.5">
-                        {fb.isResolved ? (
-                          <span className="flex items-center gap-1 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">
-                            <Check className="w-3.5 h-3.5" /> Resolved
-                          </span>
-                        ) : (
-                          <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
-                            Pending
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex gap-2 mt-1">
-                        {!fb.isResolved && (
-                          <button
-                            onClick={() => resolveFeedback(fb._id)}
-                            className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold transition-colors"
-                          >
-                            <span className="flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Resolve</span>
+                      {fb.isResolved ? (
+                        <span className="flex items-center gap-1 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                          <Check className="w-3.5 h-3.5" /> Resolved
+                        </span>
+                      ) : (
+                        <div className="flex flex-col gap-1 items-end">
+                          <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 px-2 py-0.5 rounded-full font-medium">Pending</span>
+                          <button onClick={() => resolveFeedback(fb._id)}
+                            className="text-xs text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> Resolve
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

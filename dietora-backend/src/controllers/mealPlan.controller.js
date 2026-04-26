@@ -81,6 +81,24 @@ const generate = async (req, res, next) => {
         aiErr.status === 429 ||
         aiErr.status === 503;
 
+      // Feasibility errors are user/data problems, not AI failures.
+      // The catalogue genuinely lacks enough safe foods for this profile.
+      const isFeasibility =
+        aiErr.message?.includes('Cannot build a meal plan') ||
+        /Slot "(breakfast|lunch|dinner|snack)" has only/.test(aiErr.message || '');
+
+      if (isFeasibility) {
+        return res.status(422).json({
+          success: false,
+          code: 'INSUFFICIENT_SAFE_FOODS',
+          message:
+            'We could not build a safe meal plan for your medical profile because there are not ' +
+            'enough suitable foods in our catalogue yet. Please contact support — we are continuously ' +
+            'expanding our food database to cover more conditions.',
+          detail: process.env.NODE_ENV === 'development' ? aiErr.message : undefined,
+        });
+      }
+
       return res.status(isTransient ? 503 : 500).json({
         success: false,
         message: isTransient
@@ -106,36 +124,73 @@ const generate = async (req, res, next) => {
     // Populate food item details
     let populated = await MealPlan.findById(mealPlan._id).populate(POPULATE_MEALS);
 
-    // Real-time price update (best-effort — failure does not abort the response)
+    // ─────────────────────────────────────────────────────────────────
+    // Real-time price update — RACE WITH A TIMEOUT.
+    // We give Tavily/grounding 8 seconds to come back with live prices.
+    // If it doesn't, we ship the response with static prices NOW and let
+    // the price update finish in the background (the next page-load /
+    // refresh will see the updated prices).
+    //
+    // Why: the price API is the slowest part of this endpoint (8-15s).
+    // Making it block the response means a single slow Tavily call can
+    // cause a frontend timeout / failed-to-generate UX, even though the
+    // plan itself is already saved and valid.
+    // ─────────────────────────────────────────────────────────────────
     let priceDataSource    = 'static';
     let priceSourceSummary = { grounded: 0, ai: 0, static: 0 };
 
-    try {
-      console.log('[MealPlan] Starting real-time price update...');
-      const updatedPlan = await updateMealPlanPrices(populated);
+    const PRICE_BUDGET_MS = 8000;
+    const priceUpdatePromise = (async () => {
+      try {
+        console.log('[MealPlan] Starting real-time price update...');
+        const updatedPlan = await updateMealPlanPrices(populated);
 
-      priceDataSource    = updatedPlan.priceDataSource    || 'static';
-      priceSourceSummary = updatedPlan.priceSourceSummary || { static: 0 };
+        await MealPlan.findByIdAndUpdate(mealPlan._id, {
+          days:               updatedPlan.days,
+          weeklyTotalCost:    updatedPlan.weeklyTotalCost,
+          avgDailyCost:       updatedPlan.avgDailyCost,
+          priceDataSource:    updatedPlan.priceDataSource    || 'static',
+          priceSourceSummary: updatedPlan.priceSourceSummary || { static: 0 },
+          priceLastUpdated:   new Date(),
+        });
 
-      await MealPlan.findByIdAndUpdate(mealPlan._id, {
-        days:               updatedPlan.days,
-        weeklyTotalCost:    updatedPlan.weeklyTotalCost,
-        avgDailyCost:       updatedPlan.avgDailyCost,
-        priceDataSource,
-        priceSourceSummary,
-        priceLastUpdated:   new Date(),
-      });
+        console.log(`[MealPlan] Prices updated. Source: ${updatedPlan.priceDataSource}`,
+          updatedPlan.priceSourceSummary);
+        return updatedPlan;
+      } catch (priceErr) {
+        console.warn('[MealPlan] Price update failed (serving DB prices):', priceErr.message);
+        return null;
+      }
+    })();
 
+    const timeoutPromise = new Promise((resolve) =>
+      setTimeout(() => resolve('TIMEOUT'), PRICE_BUDGET_MS)
+    );
+
+    const raceResult = await Promise.race([priceUpdatePromise, timeoutPromise]);
+
+    if (raceResult === 'TIMEOUT') {
+      console.warn(
+        `[MealPlan] ⏱ Price update exceeded ${PRICE_BUDGET_MS}ms budget. ` +
+        `Sending response with static prices; live prices will update in background.`
+      );
+      // Don't await — let it finish writing to DB whenever it can
+      priceUpdatePromise.catch((e) =>
+        console.warn('[MealPlan] Background price update failed:', e.message)
+      );
+    } else if (raceResult) {
+      // Price update finished within budget — use its values
+      priceDataSource    = raceResult.priceDataSource    || 'static';
+      priceSourceSummary = raceResult.priceSourceSummary || { static: 0 };
+      // Re-fetch to get the freshly-updated DB document
       populated = await MealPlan.findById(mealPlan._id).populate(POPULATE_MEALS);
-      console.log(`[MealPlan] Prices updated. Source: ${priceDataSource}`, priceSourceSummary);
-    } catch (priceErr) {
-      console.warn('[MealPlan] Price update failed (serving DB prices):', priceErr.message);
     }
 
     const progress = await initProgressForPlan(req.user._id, mealPlan._id);
 
     const sourceLabels = {
       grounded: '🌐 Live Google Search',
+      live:     '🌐 Live Google Search',
       ai:       '🤖 AI Knowledge',
       static:   '📊 Market Research',
     };

@@ -1,4 +1,7 @@
 {
+  "engines": {
+    "node": "v22.12.0"
+  },
   "name": "dietora-backend",
   "version": "2.0.0",
   "description": "DIETORA - AI-powered Diet Planning Backend (FYP)",
@@ -9,7 +12,8 @@
     "seed": "node src/seeders/foodSeeder.js",
     "seed:admin": "node src/seeders/adminSeeder.js",
     "seed:all": "npm run seed && npm run seed:admin",
-    "update:prices": "node src/seeders/updateFoodPrices.js"
+    "update:prices": "node src/seeders/updateFoodPrices.js",
+    "audit:catalogue": "node src/scripts/auditCatalogue.js"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
